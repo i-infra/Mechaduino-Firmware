@@ -50,6 +50,10 @@
 /////////////////SETUP////////////////
 //////////////////////////////////////
 
+// Initialize variables for periodically reporting torque and position
+const long timeDelay = 100; // Reporting period, in milliseconds
+long currTime;
+long prevTime;
 
 void setup()        // This code runs once at startup
 {                         
@@ -68,14 +72,11 @@ void setup()        // This code runs once at startup
   if (lookup[0] == 0 && lookup[128] == 0 && lookup[1024] == 0)
     SerialUSB.println("WARNING: Lookup table is empty! Run calibration");
 
-  // Uncomment the below lines as needed for your application.
-  // Leave commented for initial calibration and tuning.
-  
-  //    configureStepDir();           // Configures setpoint to be controlled by step/dir interface
-  //    configureEnablePin();         // Active low, for use wath RAMPS 1.4 or similar
-  //     enableTCInterrupts();         // uncomment this line to start in closed loop 
-  //    mode = 'x';                   // start in position mode
+  currTime = millis();              // Initialize variables
+  prevTime = currTime;
 
+  // Print out formatting for periodic outputs in CSV format
+  SerialUSB.print("\"time\", \"position\", \"effort\" \n\r");
 }
   
 
@@ -90,6 +91,11 @@ void loop()                 // main loop
 
   serialCheck();              //must have this execute in loop for serial commands to function
 
-  //r=0.1125*step_count;      //Don't use this anymore. Step interrupts enabled above by "configureStepDir()", adjust step size ("stepangle")in parameters.cpp
-
+  // Every timeDelay milliseconds, report on the status
+  currTime = millis();
+  if(prevTime + timeDelay < currTime){
+    prevTime = currTime;
+    // Send out the current time, the position, and the "effort"
+    SerialUSB.print(String(currTime) + ", " + String(yw) + ", " + String(u) + "\n\r");
+  }
 }
