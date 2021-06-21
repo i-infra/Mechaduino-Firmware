@@ -1,8 +1,9 @@
 ## GCode Control for Mechaduino
 
-This project is a fork of the original Mechaduino project, forked on 6/20/2021. 
-The goal of this project is to replace the Mechaduino default serial commands 
-with Gcode commands, particularly for use with 
+This project is a fork of the original 
+[Mechaduino](https://github.com/jcchurch13/Mechaduino-Firmware) project, forked 
+on 6/20/2021. The goal of this project is to replace the Mechaduino default 
+serial commands with Gcode commands, particularly for use with 
 [poseidon](https://github.com/pachterlab/poseidon).
 
 ## Motivation
