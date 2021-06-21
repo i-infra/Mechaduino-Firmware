@@ -15,30 +15,6 @@
 
   Implemented serial commands are:
 
- s  -  step
- d  -  dir
- p  -  print [step number] , [encoder reading]
-
- c  -  calibration routine
- e  -  check encoder diagnositics
- q  -  parameter query
-
- x  -  position mode
- v  -  velocity mode
- t  -  torque mode
-
- y  -  enable control loop
- n  -  disable control loop
- r  -  enter new setpoint
-
- j  -  step response
- k  -  edit controller gains -- note, these edits are stored in volatile memory and will be reset if power is cycled
- g  -  generate sine commutation table
- m  -  print main menu
-
-
-  ...see serialCheck() in Utils for more details
-
 */
 
 #include "Utils.h"
@@ -46,10 +22,7 @@
 #include "State.h"
 #include "analogFastWrite.h"
 
-//////////////////////////////////////
 /////////////////SETUP////////////////
-//////////////////////////////////////
-
 // Initialize variables for periodically reporting torque and position
 const long timeDelay = 100; // Reporting period, in milliseconds
 long currTime;
@@ -79,13 +52,7 @@ void setup()        // This code runs once at startup
   SerialUSB.print("\"time\", \"position\", \"effort\" \n\r");
 }
   
-
-
-//////////////////////////////////////
-/////////////////LOOP/////////////////
-//////////////////////////////////////
-
-
+////////////////LOOP/////////////////
 void loop()                 // main loop
 {
 
