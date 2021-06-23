@@ -3,6 +3,9 @@
 #ifndef __UTILS_H__
 #define __UTIL_H__
 
+  #define IS_NUMBER(ch)  (((int)ch < 48) || ((int)ch > 57))
+  #define IS_CAPITAL(ch) (((int)ch < 91) || ((int)ch > 64))
+  #define END_OF_LINE(ch)(((char)ch == '\n') || ((char)ch == '\r'))
 
 	void setupPins();                 // initializes pins
 	
@@ -65,12 +68,8 @@
   void moveRel(float pos_final,int vel_max, int accel);     // Generates trapezoidal motion profile for closed loop position mode
   
   void moveAbs(float pos_final,int vel_max, int accel);     // Generates trapezoidal motion profile for closed loop position mode
-  
+
+  void gcode_parse();
+
+  void process_string(char instruction[], int len);
 #endif
-
-
-
-
-
-
-

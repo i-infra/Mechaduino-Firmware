@@ -37,9 +37,9 @@ void setupPins() {
   analogFastWrite(VREF_1, 0.33 * uMAX);
 
   IN_4_HIGH();   //  digitalWrite(IN_4, HIGH);
-  IN_3_LOW();    //  digitalWrite(IN_3, LOW);
+  IN_3_HIGH();    //  digitalWrite(IN_3, LOW);
   IN_2_HIGH();   //  digitalWrite(IN_2, HIGH);
-  IN_1_LOW();    //  digitalWrite(IN_1, LOW);
+  IN_1_HIGH();    //  digitalWrite(IN_1, LOW);
 }
 
 void setupSPI() {
@@ -397,11 +397,15 @@ void serialCheck() {        //Monitors serial for commands.  Must be called in r
 
   if (SerialUSB.available()) {
 
-    char inChar = (char)SerialUSB.read();
+    char inChar = (char)SerialUSB.peek();
+    if(IS_CAPITAL(inChar)){ // Capital letters indicate GCode commands.
+      gcode_parse();        // Parse the command and return from serialCheck
+      return;
+    }
 
+    SerialUSB.read();       // Otherwise, remove the character from the queue
+    
     switch (inChar) {
-
-
       case 'p':             //print
         print_angle();
         break;
@@ -496,6 +500,34 @@ void serialCheck() {        //Monitors serial for commands.  Must be called in r
 
 }
 
+void gcode_parse(){
+  char command[COMMAND_SIZE];
+  byte serial_count = 0;
+  char inChar;
+  while(SerialUSB.available()>0){
+    inChar = SerialUSB.read();
+    // If we reach the end of the command, process it and return
+    // out of this function; we're done here.
+    if(END_OF_LINE(inChar) && serial_count>0){
+      process_string(command, serial_count);
+      return;
+    }
+    // Otherwise, keep reading the command in.
+    command[serial_count++] = inChar;
+  }
+  // If we run out of chars in the buffer without hitting a newline,
+  // that's techincally out of spec but we will parse the string
+  // anyways, as long as it's nonempty.
+  if(serial_count>0){
+      process_string(command, serial_count);
+  }
+  // Otherwise, we're done here, nothing more to do.
+  return;
+}
+
+void process_string(char instruction[], int len){
+   
+}
 
 void parameterQuery() {         //print current parameters in a format that can be copied directly in to Parameters.cpp
   SerialUSB.println(' ');
