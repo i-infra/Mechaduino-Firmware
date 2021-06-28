@@ -193,8 +193,9 @@ void calibrate() {   /// this is the calibration routine
   // Wired backwards if:
   // 1) we see a rollover from low to high (should be high to low)
   // 2) we see a small step lower (should be higher)
+  SerialUSB.println(String(currentencoderReading));
   if(currentencoderReading > cpr/2 || (currentencoderReading < 0 && currentencoderReading > -cpr/2)){
-    SerialUSB.println("Wired backwards");
+    SerialUSB.println("Try again. If problem persists, swap wiring");
     return;
   }
   
@@ -258,6 +259,7 @@ void calibrate() {   /// this is the calibration routine
       // For this case, we only care about the vals between jStart and ticks
       for (int j = jStart; j < (ticks); j++) {
 	      store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
+        SerialUSB.println(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
       }
     }
     else if (i == (iStart + spr)) { //this is an edge case
@@ -265,11 +267,13 @@ void calibrate() {   /// this is the calibration routine
       // the ones covered in the previous case
       for (int j = 0; j < jStart; j++) {
 	     store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
+      SerialUSB.println(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
       }
     }
     else {                        //this is the general case
       for (int j = 0; j < ticks; j++) {
 	      store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
+        SerialUSB.println(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
       }
     }
   }
