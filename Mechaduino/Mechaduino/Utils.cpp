@@ -146,15 +146,6 @@ static const void * page_ptr;
 
 static void write_page()
 {
-  if (0 == (0xFFF & (uintptr_t) page_ptr))
-  {
-    SerialUSB.println();
-    SerialUSB.print("0x");
-    SerialUSB.print((uintptr_t) page_ptr, HEX);
-  } else {
-    SerialUSB.print(".");
-  }
-
   flash.erase((const void*) page_ptr, sizeof(page));
   flash.write((const void*) page_ptr, (const void *) page, sizeof(page));
 }
@@ -267,13 +258,14 @@ void calibrate() {   /// this is the calibration routine
     if (i == iStart) { //this is an edge case
       // starting at 0, go through the ticks and assign an angle
       // given that 1 tick = 1 aps
+      // For this case, we only care about the vals between jStart and ticks
       for (int j = jStart; j < (ticks); j++) {
 	      store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
       }
     }
-
     else if (i == (iStart + spr)) { //this is an edge case
       // this time, we are ending at 0, making sure not to double-count
+      // the ones covered in the previous case
       for (int j = 0; j < jStart; j++) {
 	     store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
       }
@@ -285,16 +277,10 @@ void calibrate() {   /// this is the calibration routine
     }
   }
 
-  // Store unwritten pages
+  // Store unwritten page
   if (page_count != 0)
 	write_page();
-
-  SerialUSB.println(" ");
-  SerialUSB.println(" ");
-  SerialUSB.println("Calibration complete!");
   SerialUSB.println("The calibration table has been written to non-volatile Flash memory!");
-  SerialUSB.println(" ");
-  SerialUSB.println(" ");
 }
 
 void findijStart(int readings[], int* istart, int* jstart){
