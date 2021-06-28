@@ -395,7 +395,7 @@ float read_angle()
 
 void serialCheck() {        //Monitors serial for commands.  Must be called in routinely in loop for serial interface to work.
 
-  if (SerialUSB.available()) {
+  if (SerialUSB.available()>0) {
 
     char inChar = (char)SerialUSB.peek();
     if(IS_CAPITAL(inChar)){ // Capital letters indicate GCode commands.
@@ -504,16 +504,27 @@ void gcode_parse(){
   char command[COMMAND_SIZE];
   byte serial_count = 0;
   char inChar;
-  while(SerialUSB.available()>0){
-    inChar = SerialUSB.read();
-    // If we reach the end of the command, process it and return
-    // out of this function; we're done here.
-    if(END_OF_LINE(inChar) && serial_count>0){
-      process_string(command, serial_count);
-      return;
+  byte delays = 0;
+  
+  while(delays < DELAY_COUNT){
+    if(SerialUSB.available() > 0){
+      // If we have serial data, read it.
+      inChar = SerialUSB.read();
+      // If we reach the end of the command, process it and return
+      // out of this function; we're done here.
+      if(END_OF_LINE(inChar) && serial_count>0){
+       process_string(command, serial_count);
+        return;
+      }
+      // Otherwise, keep reading the command in.
+      command[serial_count++] = inChar;
     }
-    // Otherwise, keep reading the command in.
-    command[serial_count++] = inChar;
+    else {
+      // If we don't have serial data, give it a few microseconds to come it
+      // But if we have to wait too long, exit this loop
+      delays++;
+      delayMicroseconds(DELAY_TIME);
+    }
   }
   // If we run out of chars in the buffer without hitting a newline,
   // that's techincally out of spec but we will parse the string
@@ -526,9 +537,162 @@ void gcode_parse(){
 }
 
 void process_string(char instruction[], int len){
-   
+   // Turn the string into some actual commands!
+   // Commands To Implement:
+   //   G0:      Rapid Move - Uses the trapezoidal movement pattern, max speed
+   //   G1:      Linear Move - Move at speed set by speed set command
+   //   M220:    Set speed factor override percentage
+   //   G20/G21: Set Units to Inches/Millimeters
+   //   G28:     Home/Level - Find max and min displacement of motor and home it
+
+  unsigned int code;
+  code = search_code('G', instruction, len);
+  if (code != NOT_FOUND){
+    // If the G code is found, call the G code handling function
+    process_g(code, instruction, len);
+    // Nothing left to do in this function
+    return;
+  }
+  code = search_code('M', instruction, len);
+  if (code != NOT_FOUND){
+    // If the G code is found, call the M code handling function
+    process_m(code, instruction, len);
+    // Nothing left to do in this function
+    return;
+  }
+
+  // The only way to get here is if the code is neither a g code
+  // nor an m code - the code isn't implemented yet so we return
+  SerialUSB.println("Code not found!");
+  return;
 }
 
+//look for the number that appears after the char key and return it
+double search_code(char key, char instruction[], int string_size)
+{
+  // Temp char string for holding the code
+  // Codes are always CODE_LEN or fewer characters long
+  char temp[CODE_LEN] = "";
+
+  // Search through the string
+  for (byte i=0; i<string_size; i++)
+  {
+    // When the key is found, search through that area
+    if (instruction[i] == key)
+    {
+      i++;      
+      int k = 0;
+      while (i < string_size && k < CODE_LEN)
+      {
+        // If the character isn't a number, stop reading it
+        if (!IS_NUMBER(instruction[i]))
+          break;
+        // Otherwise, add it to temp
+        temp[k] = instruction[i];
+        i++;
+        k++;
+      }
+      // Return the string turned into a double
+      if(temp == ""){
+        // Return EMPTY if there is no command
+        return EMPTY;
+      }
+      return strtod(temp, NULL);
+    }
+  }
+  // Othewise, say it was not found.
+  return NOT_FOUND;
+}
+
+void process_g(int code, char instruction[], int len){
+  switch(code){
+    case EMPTY:
+      SerialUSB.println("Please give a command!");
+      break;
+    case RAPID_MOV:
+      // Move to target point at maximum feedrate
+    case LINEAR_MOV:
+      // Move to target point at the feedrate
+      
+      break;
+    case UNIT_IN:
+      // Change units to inches
+      break;
+    case UNIT_MM:
+      // Change units to mm
+      break;
+    case HOME:
+      // If no parameters are given, calibrate position and go home.
+      // If axes are given, home the given axes without calibrating position.
+      // Only the x-axis is implemented; search for x
+      if(search_code('X', instruction, len) == NOT_FOUND){
+        // Do the full calibration
+        if(U > UNLOADED_EFFORT_LIM){
+          SerialUSB.println("Error: Effort limit exceeded");
+          return; // Can't home if effort's too high
+        }
+        calibrate(); // Calibrate the rotation
+        // Move as far "in" as possible before hitting a high-effort region
+        // Make this the new 0
+        SerialUSB.println("Trying to calibrate");
+        disableTCInterrupts(); // No need to move while we are still doing setup
+        mode = 'v';            // Velocity mode
+        r = HOMING_SPEED;   // Move to 0 at HOMING_SPEED
+        enableTCInterrupts();  // Start moving!
+        SerialUSB.println("Moving!");
+
+        while(U < UNLOADED_EFFORT_LIM){
+          SerialUSB.println(String(U)); // Idle while waiting for limit to be hit
+        }
+        SerialUSB.println("Near home");
+        r = -1*HOMING_SPEED/4;          // Move at quarter HOMING_SPEED
+        while(U > UNLOADED_EFFORT_NOM){
+          SerialUSB.println(String(U)); // Idle until we reach nominal effort
+        }
+        r = 0;                          // Stop moving
+
+        delay(SETTLE_TIME);             // Wait for the motors to settle down
+        disableTCInterrupts();          // Stop interrupts for a bit while we
+                                        // change a bunch of variables
+        y    = 0;                       // Make this point the new 0
+        yw   = 0;
+        yw_1 = 0;
+        e    = 0;
+        e_1  = 0;
+        e_2  = 0;
+        u    = 0;
+        U    = 0;
+        u_1  = 0;
+        u_2  = 0;
+        v    = 0;
+        p    = 0;
+        i    = 0;
+        wrap_count  = 0;
+        step_count  = 0;
+        stepNumber  = 0;
+        ITerm       = 0;
+        DTerm       = 0;
+        // TODO: do something to make this position 0: edit lookup table.
+        enableTCInterrupts();
+        
+        // Move "out" as far as possible before hitting a high-effort region
+        // Make this the new upper bound.
+        r = -HOMING_SPEED;
+        
+      }
+      // In any case, move to 0 at the end.
+      break;
+    default:
+      SerialUSB.println("This hasn't been implemented yet");
+  }
+  return;
+}
+
+void process_m(int code, char instruction[], int len){
+  SerialUSB.println("That's a " + String(code) + " mcode");
+  return;
+}
+  
 void parameterQuery() {         //print current parameters in a format that can be copied directly in to Parameters.cpp
   SerialUSB.println(' ');
   SerialUSB.println("----Current Parameters-----");
@@ -635,7 +799,6 @@ void readEncoderDiagnostics()           ////////////////////////////////////////
   SerialUSB.println("Checking AS5047 diagnostic and error registers");
   SerialUSB.println("See AS5047 datasheet for details");
   SerialUSB.println(" ");
-  ;
 
   SPI.transfer(0xFF);
   SPI.transfer(0xFC);

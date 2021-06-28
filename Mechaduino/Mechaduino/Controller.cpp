@@ -76,9 +76,9 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
   }
 
   //copy current values to previous values for next control cycle
-  e_2 = e_1;    //these past values can be useful for more complex controllers/filters.  Uncomment as necessary
+  //e_2 = e_1;    //these past values can be useful for more complex controllers/filters.  Uncomment as necessary
   e_1 = e;
-  u_2 = u_1;
+  //u_2 = u_1;
   u_1 = u;
   yw_1 = yw;
 

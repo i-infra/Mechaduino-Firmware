@@ -59,10 +59,10 @@ void loop()                 // main loop
   serialCheck();              //must have this execute in loop for serial commands to function
 
   // Every timeDelay milliseconds, report on the status
-  currTime = millis();
-  if(prevTime + timeDelay < currTime){
-    prevTime = currTime;
-    // Send out the current time, the position, and the "effort"
-    SerialUSB.print(String(currTime) + ", " + String(yw) + ", " + String(u) + "\n\r");
-  }
+//  currTime = millis();
+//  if(prevTime + timeDelay < currTime){
+//    prevTime = currTime;
+//    // Send out the current time, the position, and the "effort"
+//    SerialUSB.print(String(currTime) + ", " + String(yw) + ", " + String(u) + "\n\r");
+//  }
 }

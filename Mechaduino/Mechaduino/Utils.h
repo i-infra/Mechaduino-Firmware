@@ -2,10 +2,42 @@
 
 #ifndef __UTILS_H__
 #define __UTIL_H__
-
-  #define IS_NUMBER(ch)  (((int)ch < 48) || ((int)ch > 57))
-  #define IS_CAPITAL(ch) (((int)ch < 91) || ((int)ch > 64))
+  // Defines for ASCII character manipulation
+  // Boolean expressions detecting particular characters
+  #define IS_NUMBER(ch)  (((int)ch < 58) && ((int)ch > 47))
+  #define IS_CAPITAL(ch) (((int)ch < 91) && ((int)ch > 64))
   #define END_OF_LINE(ch)(((char)ch == '\n') || ((char)ch == '\r'))
+  // Indicates when a command is not found
+  #define NOT_FOUND      4294967295
+  // Indicates when a command is empty
+  #define EMPTY          4294967294
+  // More GCode command defines
+  #define HOME           28
+  #define RAPID_MOV      0
+  #define LINEAR_MOV     1
+  #define UNIT_IN        20
+  #define UNIT_MM        21
+  #define HOME           28
+  
+  // How many times we should wait to receive a command
+  #define DELAY_COUNT    200
+  // How long to wait for a command in microseconds 
+  #define DELAY_TIME     50
+  // Number of characters in a code
+  #define CODE_LEN       4
+  // Number of characters in a GCode command
+  #define COMMAND_SIZE   250
+
+  // Effort limit for detecting end stops
+  // These values are for when there is no load on the motor
+  // beyond poseidon itself. You will need to tune these values.
+  #define UNLOADED_EFFORT_LIM     40
+  #define UNLOADED_EFFORT_NOM     20
+  // Speed at which to do homing, revolutions per minute
+  #define HOMING_SPEED   60
+
+  // Time it takes for vibrations to stop, milliseconds
+  #define SETTLE_TIME    150
 
 	void setupPins();                 // initializes pins
 	
@@ -72,4 +104,10 @@
   void gcode_parse();
 
   void process_string(char instruction[], int len);
+
+  double search_code(char key, char instruction[], int string_size);
+
+  void process_g(int code, char instruction[], int len);
+
+  void process_m(int code, char instruction[], int len);
 #endif
