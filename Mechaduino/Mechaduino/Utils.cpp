@@ -192,7 +192,7 @@ void calibrate() {   /// this is the calibration routine
   currentencoderReading = encoderReading - lastencoderReading;
   // Wired backwards if:
   // 1) we see a rollover from low to high (should be high to low)
-  // 2) we see a small step lower (should be)
+  // 2) we see a small step lower (should be higher)
   if(currentencoderReading > cpr/2 || (currentencoderReading < 0 && currentencoderReading > -cpr/2)){
     SerialUSB.println("Wired backwards");
     return;
@@ -214,9 +214,6 @@ void calibrate() {   /// this is the calibration routine
       // or subtract as needed to keep the value correct
       if ((currentencoderReading-lastencoderReading)<(-(cpr/2))){
         currentencoderReading += cpr;
-      }
-      else if ((currentencoderReading-lastencoderReading)>((cpr/2))){
-        currentencoderReading -= cpr;
       }
  
       encoderReading += currentencoderReading;
