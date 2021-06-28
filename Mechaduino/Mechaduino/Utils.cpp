@@ -631,54 +631,8 @@ void process_g(int code, char instruction[], int len){
           SerialUSB.println("Error: Effort limit exceeded");
           return; // Can't home if effort's too high
         }
-        calibrate(); // Calibrate the rotation
-        // Move as far "in" as possible before hitting a high-effort region
-        // Make this the new 0
-        SerialUSB.println("Trying to calibrate");
-        disableTCInterrupts(); // No need to move while we are still doing setup
-        mode = 'v';            // Velocity mode
-        r = HOMING_SPEED;   // Move to 0 at HOMING_SPEED
-        enableTCInterrupts();  // Start moving!
-        SerialUSB.println("Moving!");
-
-        while(U < UNLOADED_EFFORT_LIM){
-          SerialUSB.println(String(U)); // Idle while waiting for limit to be hit
-        }
-        SerialUSB.println("Near home");
-        r = -1*HOMING_SPEED/4;          // Move at quarter HOMING_SPEED
-        while(U > UNLOADED_EFFORT_NOM){
-          SerialUSB.println(String(U)); // Idle until we reach nominal effort
-        }
-        r = 0;                          // Stop moving
-
-        delay(SETTLE_TIME);             // Wait for the motors to settle down
-        disableTCInterrupts();          // Stop interrupts for a bit while we
-                                        // change a bunch of variables
-        y    = 0;                       // Make this point the new 0
-        yw   = 0;
-        yw_1 = 0;
-        e    = 0;
-        e_1  = 0;
-        e_2  = 0;
-        u    = 0;
-        U    = 0;
-        u_1  = 0;
-        u_2  = 0;
-        v    = 0;
-        p    = 0;
-        i    = 0;
-        wrap_count  = 0;
-        step_count  = 0;
-        stepNumber  = 0;
-        ITerm       = 0;
-        DTerm       = 0;
-        // TODO: do something to make this position 0: edit lookup table.
-        enableTCInterrupts();
-        
-        // Move "out" as far as possible before hitting a high-effort region
-        // Make this the new upper bound.
-        r = -HOMING_SPEED;
-        
+        // Run position calibration and home
+        calib_home();        
       }
       // In any case, move to 0 at the end.
       break;
@@ -686,6 +640,58 @@ void process_g(int code, char instruction[], int len){
       SerialUSB.println("This hasn't been implemented yet");
   }
   return;
+}
+
+void calib_home(){
+  // Get initial angle calibration (will return to this later)
+  calibrate();
+  // Move as far "in" as possible before hitting a high-effort region
+  // Make this the new 0
+  SerialUSB.println("Trying to calibrate");
+  disableTCInterrupts(); // No need to move while we are still doing setup
+  mode = 'v';            // Velocity mode
+  r = HOMING_SPEED;   // Move to 0 at HOMING_SPEED
+  enableTCInterrupts();  // Start moving!
+  SerialUSB.println("Moving!");
+
+  while(U < UNLOADED_EFFORT_LIM){
+    SerialUSB.println(String(U)); // Idle while waiting for limit to be hit
+  }
+  SerialUSB.println("Near home");
+
+  r = -1*HOMING_SPEED/4;          // Move at quarter HOMING_SPEED
+  while(U > UNLOADED_EFFORT_NOM){
+    SerialUSB.println(String(U)); // Idle until we reach nominal effort
+  }
+  r = 0;                          // Stop moving
+
+  delay(SETTLE_TIME);             // Wait for the motors to settle down
+  disableTCInterrupts();          // Stop interrupts for a bit while we
+                                  // change a bunch of variables
+  y    = 0;                       // Make this point the new 0
+  yw   = 0;
+  yw_1 = 0;
+  e    = 0;
+  e_1  = 0;
+  e_2  = 0;
+  u    = 0;
+  U    = 0;
+  u_1  = 0;
+  u_2  = 0;
+  v    = 0;
+  p    = 0;
+  i    = 0;
+  wrap_count  = 0;
+  step_count  = 0;
+  stepNumber  = 0;
+  ITerm       = 0;
+  DTerm       = 0;
+  // TODO: do something to make this position 0: edit lookup table.
+  enableTCInterrupts();
+        
+  // Move "out" as far as possible before hitting a high-effort region
+  // Make this the new upper bound.
+  r = -HOMING_SPEED;
 }
 
 void process_m(int code, char instruction[], int len){

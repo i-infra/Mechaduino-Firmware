@@ -110,4 +110,6 @@
   void process_g(int code, char instruction[], int len);
 
   void process_m(int code, char instruction[], int len);
+
+  void calib_home();
 #endif
