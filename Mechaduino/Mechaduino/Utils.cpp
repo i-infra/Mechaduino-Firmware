@@ -177,14 +177,13 @@ static void store_lookup(float lookupAngle)
 
 void calibrate() {   /// this is the calibration routine
 
-  int encoderReading = 0;     //or float?  not sure if we can average for more res?
+  int encoderReading = 0;
   int currentencoderReading = 0;
   int lastencoderReading = 0;
-  int avg = 10;               //how many readings to average
+  int avg = 16;
 
   int iStart = 0;     //encoder zero position index
   int jStart = 0;
-  int stepNo = 0;
   
   int fullStepReadings[spr];
     
@@ -193,38 +192,35 @@ void calibrate() {   /// this is the calibration routine
   float lookupAngle = 0.0;
   SerialUSB.println("Beginning calibration routine...");
 
-  encoderReading = readEncoder();
-  dir = true;
+  lastencoderReading = readEncoder();
+  dir = CW;  // Take a step clockwise, wait for vibrations to settle
   oneStep();
-  delay(500);
-
-  if ((readEncoder() - encoderReading) < 0)   //check which way motor moves when dir = true
-  {
-    SerialUSB.println("Wired backwards");    // rewiring either phase should fix this.  You may get a false message if you happen to be near the point where the encoder rolls over...
+  delay(SETTLE_TIME);
+  encoderReading = readEncoder();
+  // Take the difference
+  currentencoderReading = encoderReading - lastencoderReading;
+  // Wired backwards if:
+  // 1) we see a rollover from low to high (should be high to low)
+  // 2) we see a small step lower (should be)
+  if(currentencoderReading > cpr/2 || (currentencoderReading < 0 && currentencoderReading > -cpr/2)){
+    SerialUSB.println("Wired backwards");
     return;
   }
+  
+  // Define current position as 0
+  stepNumber = 0;
 
-  while (stepNumber != 0) {       //go to step zero
-    if (stepNumber > 0) {
-      dir = true;
-    }
-    else
-    {
-      dir = false;
-    }
-    oneStep();
-    delay(100);
-  }
-  dir = true;
   for (int x = 0; x < spr; x++) {     //step through all full step positions, recording their encoder readings
 
-    encoderReading = 0;
-    delay(20);                         //moving too fast may not give accurate readings.  Motor needs time to settle after each step.
+    encoderReading = 0;               // init. as 0 for averages
+    delay(20);                        //moving too fast may not give accurate readings.  Motor needs time to settle after each step.
     lastencoderReading = readEncoder();
         
     for (int reading = 0; reading < avg; reading++) {  //average multple readings at each step
       currentencoderReading = readEncoder();
 
+      // If we are on the edge of wrapping around, add
+      // or subtract as needed to keep the value correct
       if ((currentencoderReading-lastencoderReading)<(-(cpr/2))){
         currentencoderReading += cpr;
       }
@@ -234,10 +230,11 @@ void calibrate() {   /// this is the calibration routine
  
       encoderReading += currentencoderReading;
       delay(10);
-      lastencoderReading = currentencoderReading;
     }
+    // Take the average
     encoderReading = encoderReading / avg;
-    if (encoderReading>cpr){
+    // Put it back in range of the 14 bit value
+    if (encoderReading>=cpr){
       encoderReading-= cpr;
     }
     else if (encoderReading<0){
@@ -245,59 +242,12 @@ void calibrate() {   /// this is the calibration routine
     }
 
     fullStepReadings[x] = encoderReading;
-   // SerialUSB.println(fullStepReadings[x], DEC);      //print readings as a sanity check
-    if (x % 20 == 0)
-    {
-      SerialUSB.println();
-      SerialUSB.print(100*x/spr);
-      SerialUSB.print("% ");
-    } else {
-      SerialUSB.print('.');
-    }
     
+    // go to next step
     oneStep();
   }
-      SerialUSB.println();
-
- // SerialUSB.println(" ");
- // SerialUSB.println("ticks:");                        //"ticks" represents the number of encoder counts between successive steps... these should be around 82 for a 1.8 degree stepper
- // SerialUSB.println(" ");
-  for (int i = 0; i < spr; i++) {
-    ticks = fullStepReadings[mod((i + 1), spr)] - fullStepReadings[mod((i), spr)];
-    if (ticks < -15000) {
-      ticks += cpr;
-
-    }
-    else if (ticks > 15000) {
-      ticks -= cpr;
-    }
-   // SerialUSB.println(ticks);
-
-    if (ticks > 1) {                                    //note starting point with iStart,jStart
-      for (int j = 0; j < ticks; j++) {
-        stepNo = (mod(fullStepReadings[i] + j, cpr));
-        // SerialUSB.println(stepNo);
-        if (stepNo == 0) {
-          iStart = i;
-          jStart = j;
-        }
-
-      }
-    }
-
-    if (ticks < 1) {                                    //note starting point with iStart,jStart
-      for (int j = -ticks; j > 0; j--) {
-        stepNo = (mod(fullStepReadings[spr - 1 - i] + j, cpr));
-        // SerialUSB.println(stepNo);
-        if (stepNo == 0) {
-          iStart = i;
-          jStart = j;
-        }
-
-      }
-    }
-
-  }
+  // Once we know everything, we can analyze the data.
+  findijStart(fullStepReadings, &iStart, &jStart);
 
   // The code below generates the lookup table by intepolating between
   // full steps and mapping each encoder count to a calibrated angle
@@ -307,63 +257,35 @@ void calibrate() {   /// this is the calibration routine
   // begin the write to the calibration table
   page_count = 0;
   page_ptr = (const uint8_t*) lookup;
-  SerialUSB.print("Writing to flash 0x");
-  SerialUSB.print((uintptr_t) page_ptr, HEX);
-  SerialUSB.print(" page size PSZ=");
-  SerialUSB.print(NVMCTRL->PARAM.bit.PSZ);
-
+  // Start counting at iStart
   for (int i = iStart; i < (iStart + spr + 1); i++) {
     ticks = fullStepReadings[mod((i + 1), spr)] - fullStepReadings[mod((i), spr)];
 
-    if (ticks < -15000) {           //check if current interval wraps over encoder's zero positon
+    if (ticks < -cpr/2) {           //check if current interval wraps over encoder's zero positon
       ticks += cpr;
     }
-    else if (ticks > 15000) {
-      ticks -= cpr;
-    }
-    //Here we print an interpolated angle corresponding to each encoder count (in order)
-    if (ticks > 1) {              //if encoder counts were increasing during cal routine...
-
-      if (i == iStart) { //this is an edge case
-        for (int j = jStart; j < ticks; j++) {
-	  store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
-        }
-      }
-
-      else if (i == (iStart + spr)) { //this is an edge case
-        for (int j = 0; j < jStart; j++) {
-	  store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
-        }
-      }
-      else {                        //this is the general case
-        for (int j = 0; j < ticks; j++) {
-	  store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
-        }
+    if (i == iStart) { //this is an edge case
+      // starting at 0, go through the ticks and assign an angle
+      // given that 1 tick = 1 aps
+      for (int j = jStart; j < (ticks); j++) {
+	      store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
       }
     }
 
-    else if (ticks < 1) {             //similar to above... for case when encoder counts were decreasing during cal routine
-      if (i == iStart) {
-        for (int j = - ticks; j > (jStart); j--) {
-          store_lookup(0.001 * mod(1000 * (aps * (i) + (aps * ((ticks + j)) / float(ticks))), 360000.0));
-        }
+    else if (i == (iStart + spr)) { //this is an edge case
+      // this time, we are ending at 0, making sure not to double-count
+      for (int j = 0; j < jStart; j++) {
+	     store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
       }
-      else if (i == iStart + spr) {
-        for (int j = jStart; j > 0; j--) {
-          store_lookup(0.001 * mod(1000 * (aps * (i) + (aps * ((ticks + j)) / float(ticks))), 360000.0));
-        }
-      }
-      else {
-        for (int j = - ticks; j > 0; j--) {
-          store_lookup(0.001 * mod(1000 * (aps * (i) + (aps * ((ticks + j)) / float(ticks))), 360000.0));
-        }
-      }
-
     }
-
-
+    else {                        //this is the general case
+      for (int j = 0; j < ticks; j++) {
+	      store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
+      }
+    }
   }
 
+  // Store unwritten pages
   if (page_count != 0)
 	write_page();
 
@@ -373,6 +295,33 @@ void calibrate() {   /// this is the calibration routine
   SerialUSB.println("The calibration table has been written to non-volatile Flash memory!");
   SerialUSB.println(" ");
   SerialUSB.println(" ");
+}
+
+void findijStart(int readings[], int* istart, int* jstart){
+  int ticks;
+  int stepNo;
+  // We know readings[] will always be spr long
+  for(int i =0; i<spr; i++){
+    // Take the difference of two consecutive items (wrapping around)
+    ticks = readings[mod((i + 1), spr)] - readings[mod((i), spr)];
+    // if a step causes wrapping around, add as needed
+    if (ticks < -cpr/2) {
+      ticks += cpr;
+    }
+    // We now have all positive ticks (enforced by calibration routine)
+    for (int j = 0; j < ticks; j++){
+      // Interpolate between start and end val of the tick to find
+      // when the encoder would read 0
+      stepNo = (mod(readings[i] + j, cpr));
+      if(stepNo==0){
+        // Record the step number and 
+        *istart = i;
+        *jstart = j;
+        return;
+      }
+    }
+  }
+  return;
 }
 
 

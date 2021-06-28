@@ -33,7 +33,7 @@ extern volatile float vLPFb;
 
 extern const int spr; //  200 steps per revolution
 extern const float aps; // angle per step
-extern int cpr; //counts per rev
+extern const int cpr; //counts per rev
 extern const float stepangle;
 
 extern volatile float PA;  // phase angle

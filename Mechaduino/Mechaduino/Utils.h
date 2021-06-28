@@ -37,7 +37,11 @@
   #define HOMING_SPEED   60
 
   // Time it takes for vibrations to stop, milliseconds
-  #define SETTLE_TIME    150
+  #define SETTLE_TIME    500
+
+  // Rotation directions
+  #define CW             true
+  #define CCW            false
 
 	void setupPins();                 // initializes pins
 	
@@ -112,4 +116,7 @@
   void process_m(int code, char instruction[], int len);
 
   void calib_home();
+
+  void findijStart(int readings[], int* istart, int* jstart);
+
 #endif
