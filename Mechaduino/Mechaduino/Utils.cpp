@@ -22,10 +22,6 @@ void setupPins() {
 
   pinMode(chipSelectPin, OUTPUT); // CSn -- has to toggle high and low to signal chip to start data transfer
 
-  
-#ifdef ENABLE_PROFILE_IO  
-  pinMode(TEST1, OUTPUT);
-#endif
 
   pinMode(ledPin, OUTPUT); //
 
