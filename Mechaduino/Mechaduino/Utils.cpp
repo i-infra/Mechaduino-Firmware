@@ -197,15 +197,18 @@ void calibrate() {   /// this is the calibration routine
   
   while (stepNumber != 0) {       //go to step zero
     if (stepNumber > 0) {
-      dir = true;
+      dir = CW;
     }
     else
     {
-      dir = false;
+      dir = CCW;
     }
     oneStep();
     delay(SETTLE_TIME);
   }
+  
+  dir = CW;
+
   for (int x = 0; x < spr; x++) {     //step through all full step positions, recording their encoder readings
 
     encoderReading = 0;               // init. as 0 for averages
@@ -705,7 +708,7 @@ void parameterQuery() {         //print current parameters in a format that can 
 
 void oneStep() {           /////////////////////////////////   oneStep    ///////////////////////////////
   
-  if (!dir) {
+  if (dir==CCW) {
     stepNumber += 1;
   }
   else {
