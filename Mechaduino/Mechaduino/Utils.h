@@ -38,6 +38,9 @@
 
   // Time it takes for vibrations to stop, milliseconds
   #define SETTLE_TIME    500
+  #define QUICK_SETTLE   20
+  // Time it takes for the encoder readint to stabilize, milliseconds
+  #define READ_TIME      10
 
   // Rotation directions
   #define CW             true

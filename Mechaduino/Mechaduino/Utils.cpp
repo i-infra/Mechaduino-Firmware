@@ -195,13 +195,21 @@ void calibrate() {   /// this is the calibration routine
     return;
   }
   
-  // Define current position as 0
-  stepNumber = 0;
-
+  while (stepNumber != 0) {       //go to step zero
+    if (stepNumber > 0) {
+      dir = true;
+    }
+    else
+    {
+      dir = false;
+    }
+    oneStep();
+    delay(SETTLE_TIME);
+  }
   for (int x = 0; x < spr; x++) {     //step through all full step positions, recording their encoder readings
 
     encoderReading = 0;               // init. as 0 for averages
-    delay(20);                        //moving too fast may not give accurate readings.  Motor needs time to settle after each step.
+    delay(QUICK_SETTLE);                        //moving too fast may not give accurate readings.  Motor needs time to settle after each step.
     lastencoderReading = readEncoder();
         
     for (int reading = 0; reading < avg; reading++) {  //average multple readings at each step
@@ -214,7 +222,7 @@ void calibrate() {   /// this is the calibration routine
       }
  
       encoderReading += currentencoderReading;
-      delay(10);
+      delay(READ_TIME);
     }
     // Take the average
     encoderReading = encoderReading / avg;
