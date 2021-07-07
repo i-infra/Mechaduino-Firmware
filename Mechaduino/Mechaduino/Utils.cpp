@@ -178,14 +178,24 @@ void calibrate() {   /// this is the calibration routine
   int ticks = 0;
   float lookupAngle = 0.0;
   SerialUSB.println("Beginning calibration routine...");
-
   lastencoderReading = readEncoder();
+  for (int reading = 0; reading < avg; reading++) {  //average multple readings at each step
+    currentencoderReading = mod(readEncoder(),cpr);
+    encoderReading += currentencoderReading;
+    delay(READ_TIME);
+  }
+  encoderReading/=avg;
   dir = CW;  // Take a step clockwise, wait for vibrations to settle
   oneStep();
   delay(SETTLE_TIME);
-  encoderReading = readEncoder();
+  for (int reading = 0; reading < avg; reading++) {  //average multple readings at each step
+    currentencoderReading = mod(readEncoder(),cpr);
+    lastencoderReading += currentencoderReading;
+    delay(READ_TIME);
+  }
+  lastencoderReading/=avg;
   // Take the difference
-  currentencoderReading = encoderReading - lastencoderReading;
+  currentencoderReading = (lastencoderReading - encoderReading);
   // Wired backwards if:
   // 1) we see a rollover from low to high (should be high to low)
   // 2) we see a small step lower (should be higher)
@@ -204,7 +214,7 @@ void calibrate() {   /// this is the calibration routine
       dir = CCW;
     }
     oneStep();
-    delay(SETTLE_TIME);
+    delay(QUICK_SETTLE/2);
   }
   
   dir = CW;
@@ -590,8 +600,8 @@ void calib_home(){
   calibrate();
   // Move as far "in" as possible before hitting a high-effort region
   // Make this the new 0
-  SerialUSB.println("Trying to calibrate");
   disableTCInterrupts(); // No need to move while we are still doing setup
+  SerialUSB.println("Trying to calibrate");
   mode = 'v';            // Velocity mode
   r = HOMING_SPEED;   // Move to 0 at HOMING_SPEED
   enableTCInterrupts();  // Start moving!
@@ -607,10 +617,10 @@ void calib_home(){
     SerialUSB.println(String(U)); // Idle until we reach nominal effort
   }
   r = 0;                          // Stop moving
-
-  delay(SETTLE_TIME);             // Wait for the motors to settle down
+  SerialUSB.println("At new home");
   disableTCInterrupts();          // Stop interrupts for a bit while we
                                   // change a bunch of variables
+  delay(SETTLE_TIME);             // Wait for the motors to settle down
   y    = 0;                       // Make this point the new 0
   yw   = 0;
   yw_1 = 0;
@@ -629,12 +639,24 @@ void calib_home(){
   stepNumber  = 0;
   ITerm       = 0;
   DTerm       = 0;
-  // TODO: do something to make this position 0: edit lookup table.
+  // TODO: do something to make this position 0: edit lookup table?
   enableTCInterrupts();
         
   // Move "out" as far as possible before hitting a high-effort region
   // Make this the new upper bound.
   r = -HOMING_SPEED;
+  while(U < UNLOADED_EFFORT_LIM){
+    SerialUSB.println(String(U)); // Idle while waiting for limit to be hit
+  }
+  SerialUSB.println("Near extreme");
+
+  r = 1*HOMING_SPEED/4;          // Move at quarter HOMING_SPEED
+  while(U > UNLOADED_EFFORT_NOM){
+    SerialUSB.println(String(U)); // Idle until we reach nominal effort
+  }
+  r = 0;                          // Stop moving
+  delay(SETTLE_TIME);             // Wait for the motors to settle down
+  SerialUSB.println("At new extreme");
 }
 
 void process_m(int code, char instruction[], int len){
