@@ -24,7 +24,7 @@
 
 /////////////////SETUP////////////////
 // Initialize variables for periodically reporting torque and position
-const long timeDelay = 100; // Reporting period, in milliseconds
+const long timeDelay = 50; // Reporting period, in milliseconds
 long currTime;
 long prevTime;
 
