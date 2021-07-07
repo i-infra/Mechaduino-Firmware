@@ -32,7 +32,7 @@
   // These values are for when there is no load on the motor
   // beyond poseidon itself. You will need to tune these values.
   #define UNLOADED_EFFORT_LIM     40
-  #define UNLOADED_EFFORT_NOM     20
+  #define UNLOADED_EFFORT_NOM     30
   // Speed at which to do homing, revolutions per minute
   #define HOMING_SPEED   60
 

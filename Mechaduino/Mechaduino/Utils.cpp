@@ -641,18 +641,19 @@ void calib_home(){
   DTerm       = 0;
   // TODO: do something to make this position 0: edit lookup table?
   enableTCInterrupts();
+  delay(SETTLE_TIME*2);
         
   // Move "out" as far as possible before hitting a high-effort region
   // Make this the new upper bound.
   r = -HOMING_SPEED;
   while(U < UNLOADED_EFFORT_LIM){
-    SerialUSB.println(String(U)); // Idle while waiting for limit to be hit
+    SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + "\n\r"); // Idle while waiting for limit to be hit
   }
   SerialUSB.println("Near extreme");
 
   r = 1*HOMING_SPEED/4;          // Move at quarter HOMING_SPEED
   while(U > UNLOADED_EFFORT_NOM){
-    SerialUSB.println(String(U)); // Idle until we reach nominal effort
+    SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + "\n\r"); // Idle until we reach nominal effort
   }
   r = 0;                          // Stop moving
   delay(SETTLE_TIME);             // Wait for the motors to settle down
