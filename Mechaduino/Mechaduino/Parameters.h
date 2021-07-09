@@ -42,6 +42,7 @@ extern const float iMAX;
 extern const float rSense;
 extern volatile int uMAX;
 
+#define COMMAND_SIZE 128  // bytes per gcode command
 
 extern const int sin_1[];
 
@@ -72,21 +73,7 @@ extern const int sin_1[];
 #define ledPin_HIGH() (REG_PORT_OUTSET0 = PORT_PA17)
 #define ledPin_LOW() (REG_PORT_OUTCLR0 = PORT_PA17)
 #define CHIPSELECT_HIGH() (REG_PORT_OUTSET1 = PORT_PB09)
-#define CHIPSELECT_LOW() (REG_PORT_OUTCLR1 = PORT_PB09)
-
-//#define ENABLE_PROFILE_IO    // Define to enable profiling I/O pins
-
-#ifdef ENABLE_PROFILE_IO  
-  #define TEST1   3
-
-  #define TEST1_HIGH() (REG_PORT_OUTSET0 = PORT_PA09)
-  #define TEST1_LOW() (REG_PORT_OUTCLR0 = PORT_PA09)
-
-#else
-  #define TEST1_HIGH()
-  #define TEST1_LOW() 
-#endif
-
+#define CHIPSELECT_LOW() (REG_PORT_OUTCLR1 = PORT_PB09) 
 
 
 #endif

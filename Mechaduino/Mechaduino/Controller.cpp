@@ -6,7 +6,14 @@
 #include "State.h"
 #include "Utils.h"
 #include "Parameters.h"
+#include "Controller.h"
 
+// Initialize controller flag and rolling average
+volatile int controller_flag = NO_FLAGS;
+volatile float u_roll = 0;
+volatile float u_roll_1 = 0;
+volatile float u_past[FILTER_LEN];
+volatile unsigned long past_time = 0;
 
 void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
   if (TC5->COUNT16.INTFLAG.bit.OVF == 1) {        // A counter overflow caused the interrupt
@@ -81,7 +88,35 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
   //u_2 = u_1;
   u_1 = u;
   yw_1 = yw;
+  
+  // Check to make sure the limit threshold isn't exceeded
+  if(U > EFFORT_MAX){
+    // Stop moving and hold at position until some other function
+    // handles the flag.
+    mode = 'v';
+    r = 0;
+    // Set the MAX_EFFORT_ERR flag
+    controller_flag |= MAX_EFFORT_ERR;
+  }
 
+  // Shift in new value and take the average to get the filtered effort
+  // Do the following with period FILTER_PERIOD_US
+  unsigned long current_time = micros();  
+  if((current_time - FILTER_PERIOD_US) > past_time){
+    u_roll_1 = u_roll;
+    u_roll = 0;
+    past_time = current_time;
+    
+    for(int i = FILTER_LEN-1; i >= 1; i--){
+      // Shift in a new value and do avg
+      u_past[i] = u_past[i-1];
+      u_roll += u_past[i];
+    }
+    u_past[0] = u;
+    u_roll += u;
+    u_roll = u_roll / FILTER_LEN;
+  }
+
+  
   TC5->COUNT16.INTFLAG.bit.OVF = 1;    // writing a one clears the flag ovf flag
-  TEST1_LOW();            //for testing the control loop timing
 }

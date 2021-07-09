@@ -4,8 +4,6 @@
 #include "Parameters.h"
 #include "math.h"
 
-#define COMMAND_SIZE 128  // bytes per gcode command
-
 //----Current Parameters-----
 
 volatile float Fs = 6500.0;   //Sample frequency in Hz
@@ -27,7 +25,6 @@ const float __attribute__((__aligned__(256))) lookup[16384] = {
 };
 
 
-
 volatile float pLPFa = exp(pLPF*-2*3.14159/Fs); // z = e^st pole mapping
 volatile float pLPFb = (1.0-pLPFa);
 volatile float vLPFa = exp(vLPF*-2*3.14159/Fs); // z = e^st pole mapping
@@ -44,6 +41,7 @@ volatile float PA = aps;            // Phase advance...aps = 1.8 for 200 steps p
 const float iMAX = 1.5;             // Be careful adjusting this.  While the A4954 driver is rated for 2.0 Amp peak currents, it cannot handle these currents continuously.  Depending on how you operate the Mechaduino, you may be able to safely raise this value...please refer to the A4954 datasheet for more info
 const float rSense = 0.150;
 volatile int uMAX = (255/3.3)*(iMAX*10*rSense);   // 255 for 8-bit pwm, 1023 for 10 bit, must also edit analogFastWrite
+
 
 // A sine lookup table is faster than using the built in sin() function
 // for motor commutation... shifted by 0 degrees (this appears to allow

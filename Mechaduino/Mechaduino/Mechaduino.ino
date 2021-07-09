@@ -34,7 +34,6 @@ void setup()        // This code runs once at startup
   digitalWrite(ledPin,HIGH);        // turn LED on 
   setupPins();                      // configure pins
   setupTCInterrupts();              // configure controller interrupt
-
   SerialUSB.begin(115200);          
   delay(3000);                      // This delay seems to make it easier to establish a connection when the Mechaduino is configured to start in closed loop mode.  
   serialMenu();                     // Prints menu to serial monitor
@@ -59,10 +58,10 @@ void loop()                 // main loop
   serialCheck();              //must have this execute in loop for serial commands to function
 
   // Every timeDelay milliseconds, report on the status
-//  currTime = millis();
-//  if(prevTime + timeDelay < currTime){
-//    prevTime = currTime;
-//    // Send out the current time, the position, and the "effort"
-//    SerialUSB.print(String(currTime) + ", " + String(yw) + ", " + String(u) + "\n\r");
-//  }
+  currTime = millis();
+  if(prevTime + timeDelay < currTime){
+    prevTime = currTime;
+    // Send out the current time, the position, and the "effort"
+    SerialUSB.print(String(currTime) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + "\n\r");
+  }
 }

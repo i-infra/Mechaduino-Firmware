@@ -607,57 +607,37 @@ void calib_home(){
   enableTCInterrupts();  // Start moving!
   SerialUSB.println("Moving!");
 
-  while(U < UNLOADED_EFFORT_LIM){
-    SerialUSB.println(String(U)); // Idle while waiting for limit to be hit
+  while(abs(u_roll) < UNLOADED_EFFORT_LIM){
+    delayMicroseconds(FILTER_PERIOD_US); // Idle while waiting for limit to be hit
   }
   SerialUSB.println("Near home");
 
   r = -1*HOMING_SPEED/4;          // Move at quarter HOMING_SPEED
-  while(U > UNLOADED_EFFORT_NOM){
-    SerialUSB.println(String(U)); // Idle until we reach nominal effort
+  while(abs(u_roll) > UNLOADED_EFFORT_NOM || abs(u_roll-u_roll_1) > EFFORT_SLOPE_THRESH){
+    delayMicroseconds(FILTER_PERIOD_US); // Idle until we reach nominal effort
   }
   r = 0;                          // Stop moving
   SerialUSB.println("At new home");
-  disableTCInterrupts();          // Stop interrupts for a bit while we
-                                  // change a bunch of variables
+  SerialUSB.println(yw);
   delay(SETTLE_TIME);             // Wait for the motors to settle down
-  y    = 0;                       // Make this point the new 0
-  yw   = 0;
-  yw_1 = 0;
-  e    = 0;
-  e_1  = 0;
-  e_2  = 0;
-  u    = 0;
-  U    = 0;
-  u_1  = 0;
-  u_2  = 0;
-  v    = 0;
-  p    = 0;
-  i    = 0;
-  wrap_count  = 0;
-  step_count  = 0;
-  stepNumber  = 0;
-  ITerm       = 0;
-  DTerm       = 0;
-  // TODO: do something to make this position 0: edit lookup table?
-  enableTCInterrupts();
-  delay(SETTLE_TIME*2);
-        
+          
   // Move "out" as far as possible before hitting a high-effort region
   // Make this the new upper bound.
   r = -HOMING_SPEED;
-  while(U < UNLOADED_EFFORT_LIM){
-    SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + "\n\r"); // Idle while waiting for limit to be hit
+  while(abs(u_roll) < UNLOADED_EFFORT_LIM){
+    delayMicroseconds(FILTER_PERIOD_US); // Idle while waiting for limit to be hit
   }
   SerialUSB.println("Near extreme");
 
   r = 1*HOMING_SPEED/4;          // Move at quarter HOMING_SPEED
-  while(U > UNLOADED_EFFORT_NOM){
-    SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + "\n\r"); // Idle until we reach nominal effort
+  while(abs(u_roll) > UNLOADED_EFFORT_NOM || abs(u_roll-u_roll_1) > EFFORT_SLOPE_THRESH){
+    delayMicroseconds(FILTER_PERIOD_US); // Idle until we reach nominal effort
   }
   r = 0;                          // Stop moving
   delay(SETTLE_TIME);             // Wait for the motors to settle down
   SerialUSB.println("At new extreme");
+  SerialUSB.println(yw);
+  return;
 }
 
 void process_m(int code, char instruction[], int len){
@@ -883,7 +863,10 @@ int mod(int xMod, int mMod) {
 
 
 void setupTCInterrupts() {  // configure the controller interrupt
-
+  // Clear rolling avg filter
+  for(int i = 0; i<FILTER_LEN;i++){
+    u_past[i] = 0;
+  }
   // Enable GCLK for TC4 and TC5 (timer counter input clock)
   GCLK->CLKCTRL.reg = (uint16_t) (GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK0 | GCLK_CLKCTRL_ID(GCM_TC4_TC5));
   while (GCLK->STATUS.bit.SYNCBUSY);
@@ -900,7 +883,7 @@ void setupTCInterrupts() {  // configure the controller interrupt
   TC5->COUNT16.CTRLA.reg |= TC_CTRLA_PRESCALER_DIV1;   // Set perscaler
   WAIT_TC16_REGS_SYNC(TC5)
 
-  TC5->COUNT16.CC[0].reg = (int)( round(48000000 / Fs)); //0x3E72; //0x4AF0;
+  TC5->COUNT16.CC[0].reg = (int)( round(48000000 / Fs)); // clock speed / freq = tick check
   WAIT_TC16_REGS_SYNC(TC5)
 
   TC5->COUNT16.INTENSET.reg = 0;              // disable all interrupts

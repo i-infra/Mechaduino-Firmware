@@ -37,13 +37,8 @@ extern volatile float DTerm;
 extern char mode;
 extern int dir;
 
+extern volatile float u_roll; 
+extern volatile float u_roll_1; 
+
 extern bool print_yw;     //for step response, under development...
 #endif
-
-
-
-
-
-
-
-
