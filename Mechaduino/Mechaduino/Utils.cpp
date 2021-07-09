@@ -162,7 +162,7 @@ static void store_lookup(float lookupAngle)
 }
 
 
-void calibrate() {   /// this is the calibration routine
+int calibrate() {   /// this is the calibration routine
 
   int encoderReading = 0;
   int currentencoderReading = 0;
@@ -178,7 +178,6 @@ void calibrate() {   /// this is the calibration routine
   int ticks = 0;
   float lookupAngle = 0.0;
   SerialUSB.println("Beginning calibration routine...");
-  lastencoderReading = readEncoder();
   for (int reading = 0; reading < avg; reading++) {  //average multple readings at each step
     currentencoderReading = mod(readEncoder(),cpr);
     encoderReading += currentencoderReading;
@@ -200,11 +199,10 @@ void calibrate() {   /// this is the calibration routine
   // 1) we see a rollover from low to high (should be high to low)
   // 2) we see a small step lower (should be higher)
   SerialUSB.println(String(currentencoderReading));
-  if(currentencoderReading > cpr/2 || (currentencoderReading < 0 && currentencoderReading > -cpr/2)){
+  if(currentencoderReading > cpr/2 || currentencoderReading<0){
     SerialUSB.println("Try again. If problem persists, swap wiring");
-    return;
+    return CALIBRATION_FAIL;
   }
-  
   while (stepNumber != 0) {       //go to step zero
     if (stepNumber > 0) {
       dir = CW;
@@ -299,6 +297,7 @@ void calibrate() {   /// this is the calibration routine
   if (page_count != 0)
 	write_page();
   SerialUSB.println("The calibration table has been written to non-volatile Flash memory!");
+  return CALIBRATION_SUCCESS;
 }
 
 void findijStart(int readings[], int* istart, int* jstart){
@@ -521,7 +520,7 @@ void process_string(char instruction[], int len){
 }
 
 //look for the number that appears after the char key and return it
-double search_code(char key, char instruction[], int string_size)
+float search_code(char key, char instruction[], int string_size)
 {
   // Temp char string for holding the code
   // Codes are always CODE_LEN or fewer characters long
@@ -545,25 +544,53 @@ double search_code(char key, char instruction[], int string_size)
         i++;
         k++;
       }
-      // Return the string turned into a double
+      // Return the string turned into a float
       if(temp == ""){
         // Return EMPTY if there is no command
         return EMPTY;
       }
-      return strtod(temp, NULL);
+      return String(temp).toFloat();
     }
   }
   // Othewise, say it was not found.
   return NOT_FOUND;
 }
 
+float interpolate_pos(float target){
+  // Convert the target position in millimeters to the target degree rotation
+  float result;
+  result = (float)xmin - (float)target * (360.0/((float)MM_PER_ROT));
+  SerialUSB.println(target);
+  SerialUSB.println(result);
+
+  // Check if bounds are exceeded
+  // These variables are poorly named... 
+  if(result > xmin){
+    result = xmin;
+  }
+  else if(result < xmax){
+    result = xmax;
+  }
+  SerialUSB.println(result);
+  return result;
+}
+
 void process_g(int code, char instruction[], int len){
+  float reading;
   switch(code){
     case EMPTY:
       SerialUSB.println("Please give a command!");
       break;
     case RAPID_MOV:
       // Move to target point at maximum feedrate
+      reading = search_code('X', instruction, len);
+      if(reading == NOT_FOUND){
+        SerialUSB.println("Give a x position");
+        return;
+      }
+      mode = 'x';
+      r = interpolate_pos(reading);
+      break;
     case LINEAR_MOV:
       // Move to target point at the feedrate
       
@@ -590,7 +617,7 @@ void process_g(int code, char instruction[], int len){
       // Then, if calibrated, move it home at full speed.
       if(xmin != 0 || xmax != 0){
         mode = 'x';
-        r = x_min;
+        r = xmin;
       }
       // In any case, move to 0 at the end.
       break;
@@ -601,8 +628,14 @@ void process_g(int code, char instruction[], int len){
 }
 
 void calib_home(){
+  // Check if we need to calibrate
+  if (lookup[0] == 0 && lookup[128] == 0 && lookup[1024] == 0){
+    if(calibrate()==CALIBRATION_FAIL){
+      return;
+    }
+  }
   // Get initial angle calibration (will return to this later)
-  calibrate();
+  
   // Move as far "in" as possible before hitting a high-effort region
   // Make this the new 0
   disableTCInterrupts(); // No need to move while we are still doing setup

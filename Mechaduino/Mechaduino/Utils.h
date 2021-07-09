@@ -4,13 +4,13 @@
 #define __UTIL_H__
   // Defines for ASCII character manipulation
   // Boolean expressions detecting particular characters
-  #define IS_NUMBER(ch)  (((int)ch < 58) && ((int)ch > 47))
+  #define IS_NUMBER(ch)  ((((int)ch < 58) && ((int)ch > 47)) || ((int)ch == 46))
   #define IS_CAPITAL(ch) (((int)ch < 91) && ((int)ch > 64))
   #define END_OF_LINE(ch)(((char)ch == '\n') || ((char)ch == '\r'))
   // Indicates when a command is not found
-  #define NOT_FOUND      4294967295
+  #define NOT_FOUND      888888
   // Indicates when a command is empty
-  #define EMPTY          4294967294
+  #define EMPTY          999999
   // More GCode command defines
   #define HOME           28
   #define RAPID_MOV      0
@@ -23,8 +23,8 @@
   #define DELAY_COUNT    200
   // How long to wait for a command in microseconds 
   #define DELAY_TIME     50
-  // Number of characters in a code
-  #define CODE_LEN       4
+  // Number of characters in a code (i.e. instruction or len to move)
+  #define CODE_LEN       32
   // Number of characters in a GCode command
   #define COMMAND_SIZE   250
 
@@ -48,6 +48,13 @@
   #define CW             true
   #define CCW            false
 
+  // Calibration flags
+  #define CALIBRATION_FAIL    1
+  #define CALIBRATION_SUCCESS 0
+
+  // Rod thread - millimeters per rotation
+  #define MM_PER_ROT          2
+
 	void setupPins();                 // initializes pins
 	
 	void setupSPI();                  //initializes SPI
@@ -64,7 +71,7 @@
 
 	void output(float theta, int effort);	  //calculates phase currents (commutation) and outputs to Vref pins
 
-	void calibrate();	                //calibration routine
+	int  calibrate();	                //calibration routine
 		
 	void serialCheck();               //checks serial port for commands.  Must include this in loop() for serial interface to work
 
@@ -114,7 +121,7 @@
 
   void process_string(char instruction[], int len);
 
-  double search_code(char key, char instruction[], int string_size);
+  float search_code(char key, char instruction[], int string_size);
 
   void process_g(int code, char instruction[], int len);
 
