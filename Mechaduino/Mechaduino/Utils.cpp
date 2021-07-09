@@ -587,6 +587,11 @@ void process_g(int code, char instruction[], int len){
         // Run position calibration and home
         calib_home();        
       }
+      // Then, if calibrated, move it home at full speed.
+      if(xmin != 0 || xmax != 0){
+        mode = 'x';
+        r = x_min;
+      }
       // In any case, move to 0 at the end.
       break;
     default:
@@ -619,6 +624,7 @@ void calib_home(){
   r = 0;                          // Stop moving
   SerialUSB.println("At new home");
   SerialUSB.println(yw);
+  xmin = yw;
   delay(SETTLE_TIME);             // Wait for the motors to settle down
           
   // Move "out" as far as possible before hitting a high-effort region
@@ -637,6 +643,7 @@ void calib_home(){
   delay(SETTLE_TIME);             // Wait for the motors to settle down
   SerialUSB.println("At new extreme");
   SerialUSB.println(yw);
+  xmax = yw;
   return;
 }
 

@@ -89,15 +89,18 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
   u_1 = u;
   yw_1 = yw;
   
+  // TODO: Check if effort exceeds limit AND velocity is below limit
+  // i.e. trying to move, but blocked.
+  
   // Check to make sure the limit threshold isn't exceeded
-  if(U > EFFORT_MAX){
-    // Stop moving and hold at position until some other function
-    // handles the flag.
-    mode = 'v';
-    r = 0;
-    // Set the MAX_EFFORT_ERR flag
-    controller_flag |= MAX_EFFORT_ERR;
-  }
+  // if(U > EFFORT_MAX){
+  //   // Stop moving and hold at position until some other function
+  //   // handles the flag.
+  //   mode = 'v';
+  //   r = 0;
+  //   // Set the MAX_EFFORT_ERR flag
+  //   controller_flag |= MAX_EFFORT_ERR;
+  // }
 
   // Shift in new value and take the average to get the filtered effort
   // Do the following with period FILTER_PERIOD_US
