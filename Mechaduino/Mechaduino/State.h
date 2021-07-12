@@ -25,8 +25,9 @@ extern volatile float u_3;
 extern volatile float e_3;
 extern volatile long counter;
 
-extern volatile float xmax;
-extern volatile float xmin;
+extern float xmax;
+extern float xmin;
+extern char  units;
 
 extern volatile long wrap_count;
 extern volatile float y_1;

@@ -15,9 +15,10 @@
   #define HOME           28
   #define RAPID_MOV      0
   #define LINEAR_MOV     1
-  #define UNIT_IN        20
-  #define UNIT_MM        21
+  #define CHANGE_UNIT_IN 20
+  #define CHANGE_UNIT_MM 21
   #define HOME           28
+  #define DWELL          4
   
   // How many times we should wait to receive a command
   #define DELAY_COUNT    200
@@ -54,6 +55,9 @@
 
   // Rod thread - millimeters per rotation
   #define MM_PER_ROT          2
+  #define IN_PER_ROT          0.0787402f
+  #define UNITS_MM            'm'
+  #define UNITS_IN            'i'
 
 	void setupPins();                 // initializes pins
 	

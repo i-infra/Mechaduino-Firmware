@@ -1,5 +1,5 @@
   //Contains the declaration of the state variables for the control loop  
-
+#include "Parameters.h"
 
 //interrupt vars
 
@@ -23,8 +23,9 @@ volatile float u_3 = 0.0;
 volatile float e_3 = 0.0;
 volatile long counter = 0;
 
-volatile float xmin = 0;
-volatile float xmax = 0;
+float xmin = 0;
+float xmax = 0;
+char  units;
 
 volatile long wrap_count = 0;  //keeps track of how many revolutions the motor has gone though (so you can command angles outside of 0-360)
 volatile float y_1 = 0;

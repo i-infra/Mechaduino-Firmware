@@ -177,6 +177,7 @@ int calibrate() {   /// this is the calibration routine
   int fullStep = 0;
   int ticks = 0;
   float lookupAngle = 0.0;
+  units = UNITS_MM;
   SerialUSB.println("Beginning calibration routine...");
   for (int reading = 0; reading < avg; reading++) {  //average multple readings at each step
     currentencoderReading = mod(readEncoder(),cpr);
@@ -274,7 +275,6 @@ int calibrate() {   /// this is the calibration routine
       // For this case, we only care about the vals between jStart and ticks
       for (int j = jStart; j < (ticks); j++) {
 	      store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
-        SerialUSB.println(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
       }
     }
     else if (i == (iStart + spr)) { //this is an edge case
@@ -282,13 +282,11 @@ int calibrate() {   /// this is the calibration routine
       // the ones covered in the previous case
       for (int j = 0; j < jStart; j++) {
 	     store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
-      SerialUSB.println(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
       }
     }
     else {                        //this is the general case
       for (int j = 0; j < ticks; j++) {
 	      store_lookup(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
-        SerialUSB.println(0.001 * mod(1000 * ((aps * i) + ((aps * j ) / float(ticks))), 360000.0));
       }
     }
   }
@@ -559,9 +557,12 @@ float search_code(char key, char instruction[], int string_size)
 float interpolate_pos(float target){
   // Convert the target position in millimeters to the target degree rotation
   float result;
-  result = (float)xmin - (float)target * (360.0/((float)MM_PER_ROT));
-  SerialUSB.println(target);
-  SerialUSB.println(result);
+  if(units == UNITS_MM){
+    result = (float)xmin - (float)target * (360.0/((float)MM_PER_ROT));
+  }
+  else{
+    result = (float)xmin - (float)target * (360.0/((float)IN_PER_ROT));
+  }
 
   // Check if bounds are exceeded
   // These variables are poorly named... 
@@ -592,14 +593,17 @@ void process_g(int code, char instruction[], int len){
       r = interpolate_pos(reading);
       break;
     case LINEAR_MOV:
-      // Move to target point at the feedrate
+      // Move to target point at the feedrate (with acceleration)
+
       
       break;
-    case UNIT_IN:
+    case CHANGE_UNIT_IN:
       // Change units to inches
+      units = UNITS_IN;
       break;
-    case UNIT_MM:
+    case CHANGE_UNIT_MM:
       // Change units to mm
+      units = UNITS_MM;
       break;
     case HOME:
       // If no parameters are given, calibrate position and go home.
@@ -621,6 +625,11 @@ void process_g(int code, char instruction[], int len){
       }
       // In any case, move to 0 at the end.
       break;
+    case DWELL:
+      reading = search_code('P', instruction, len);
+      if(reading != NOT_FOUND)
+        delay((int)reading);
+    break;
     default:
       SerialUSB.println("This hasn't been implemented yet");
   }
