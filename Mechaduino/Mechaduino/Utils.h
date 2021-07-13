@@ -17,8 +17,10 @@
   #define LINEAR_MOV     1
   #define CHANGE_UNIT_IN 20
   #define CHANGE_UNIT_MM 21
-  #define HOME           28
   #define DWELL          4
+  #define SET_HOME       92
+  #define SET_ABS        90
+  #define SET_REL        91
   
   // How many times we should wait to receive a command
   #define DELAY_COUNT    200
@@ -56,8 +58,8 @@
   // Rod thread - millimeters per rotation
   #define MM_PER_ROT          2
   #define IN_PER_ROT          0.0787402f
-  #define UNITS_MM            'm'
-  #define UNITS_IN            'i'
+  #define UNITS_MM            1<<0
+  #define POS_ABSOLUTE        1<<1
 
 	void setupPins();                 // initializes pins
 	
@@ -134,5 +136,9 @@
   void calib_home();
 
   void findijStart(int readings[], int* istart, int* jstart);
+
+  float interpolate_pos(float target);
+
+  float bound_pos(float target);
 
 #endif

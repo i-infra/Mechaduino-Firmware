@@ -27,7 +27,7 @@ extern volatile long counter;
 
 extern float xmax;
 extern float xmin;
-extern char  units;
+extern int  behavior;
 
 extern volatile long wrap_count;
 extern volatile float y_1;

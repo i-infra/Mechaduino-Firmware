@@ -177,7 +177,8 @@ int calibrate() {   /// this is the calibration routine
   int fullStep = 0;
   int ticks = 0;
   float lookupAngle = 0.0;
-  units = UNITS_MM;
+  // Start out in mm mode and absolute positioning
+  behavior = behavior | UNITS_MM | POS_ABSOLUTE;
   SerialUSB.println("Beginning calibration routine...");
   for (int reading = 0; reading < avg; reading++) {  //average multple readings at each step
     currentencoderReading = mod(readEncoder(),cpr);
@@ -557,23 +558,26 @@ float search_code(char key, char instruction[], int string_size)
 float interpolate_pos(float target){
   // Convert the target position in millimeters to the target degree rotation
   float result;
-  if(units == UNITS_MM){
-    result = (float)xmin - (float)target * (360.0/((float)MM_PER_ROT));
+  if(behavior & UNITS_MM){
+    result = (float)target * (360.0/((float)MM_PER_ROT));
   }
   else{
-    result = (float)xmin - (float)target * (360.0/((float)IN_PER_ROT));
+    result = (float)target * (360.0/((float)IN_PER_ROT));
   }
+  return result;
+}
 
+float bound_pos(float target){
   // Check if bounds are exceeded
   // These variables are poorly named... 
-  if(result > xmin){
-    result = xmin;
+  if(target > xmin){
+    target = xmin;
   }
-  else if(result < xmax){
-    result = xmax;
+  else if(target < xmax){
+    target = xmax;
   }
-  SerialUSB.println(result);
-  return result;
+
+  return target;
 }
 
 void process_g(int code, char instruction[], int len){
@@ -589,22 +593,48 @@ void process_g(int code, char instruction[], int len){
         SerialUSB.println("Give a x position");
         return;
       }
+
+      // Convert the reading 
+      reading = interpolate_pos(reading);
+
+      if(behavior & POS_ABSOLUTE){
+        // If doing absolute positioning, use home as reference point
+        reading = xmin - reading;
+      }
+      else{
+        // Else, add on to current position
+        reading = yw + reading;
+      }
+
+      // Keep output position within boundaries
       mode = 'x';
-      r = interpolate_pos(reading);
+      r = bound_pos(reading);
       break;
     case LINEAR_MOV:
       // Move to target point at the feedrate (with acceleration)
 
       
       break;
+    case SET_ABS:
+      // Set absolute positioning
+      behavior = behavior | POS_ABSOLUTE;
+      break;
+    case SET_REL:  
+      // Set relative positioning
+      behavior = behavior & ~POS_ABSOLUTE;
+      break;
     case CHANGE_UNIT_IN:
       // Change units to inches
-      units = UNITS_IN;
+      behavior = behavior & ~UNITS_MM;
       break;
     case CHANGE_UNIT_MM:
       // Change units to mm
-      units = UNITS_MM;
+      behavior = behavior | UNITS_MM;
       break;
+    case SET_HOME:
+      // Set the current location to home
+      xmin = yw;
+      break;  
     case HOME:
       // If no parameters are given, calibrate position and go home.
       // If axes are given, home the given axes without calibrating position.

@@ -25,7 +25,7 @@ volatile long counter = 0;
 
 float xmin = 0;
 float xmax = 0;
-char  units;
+int  behavior;
 
 volatile long wrap_count = 0;  //keeps track of how many revolutions the motor has gone though (so you can command angles outside of 0-360)
 volatile float y_1 = 0;

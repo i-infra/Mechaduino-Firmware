@@ -15,8 +15,8 @@ volatile float pLPF = 30;       //break frequency in hertz
 
 volatile float vKp = 0.25;       //velocity mode PID values.  Depending on your motor/load/desired performance, you will need to tune these values.  You can also implement your own control scheme
 volatile float vKi = 0.015;
-volatile float vKd = 0.015;
-volatile float vLPF = 50.0;       //break frequency in hertz
+volatile float vKd = 0.02;
+volatile float vLPF = 100.0;       //break frequency in hertz
 
 // This is the encoder lookup table (created by calibration routine):
 
