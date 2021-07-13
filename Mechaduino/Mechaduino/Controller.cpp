@@ -9,7 +9,7 @@
 #include "Controller.h"
 
 // Initialize controller flag and rolling average
-volatile int controller_flag = NO_FLAGS;
+volatile unsigned int controller_flag = NO_FLAGS;
 volatile float u_roll = 0;
 volatile float u_roll_1 = 0;
 volatile float u_past[FILTER_LEN];
@@ -93,14 +93,13 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
   // i.e. trying to move, but blocked.
   
   // Check to make sure the limit threshold isn't exceeded
-  // if(U > EFFORT_MAX){
-  //   // Stop moving and hold at position until some other function
-  //   // handles the flag.
-  //   mode = 'v';
-  //   r = 0;
-  //   // Set the MAX_EFFORT_ERR flag
-  //   controller_flag |= MAX_EFFORT_ERR;
-  // }
+  if(U > EFFORT_MAX && mode == 'v'){
+    // Stop moving and hold at position until some other function
+    // handles the flag.
+    r = 0;
+    // Set the MAX_EFFORT_ERR flag
+    controller_flag |= MAX_EFFORT_ERR;
+  }
 
   // Shift in new value and take the average to get the filtered effort
   // Do the following with period FILTER_PERIOD_US

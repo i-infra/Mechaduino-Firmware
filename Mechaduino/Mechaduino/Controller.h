@@ -8,11 +8,12 @@
 // For rolling average filter
 #define FILTER_LEN    32
 extern volatile float u_past[FILTER_LEN];
-extern volatile int   controller_flag;
+extern volatile unsigned int   controller_flag;
 #define FILTER_PERIOD_US 20000 // Time period between adding to the filter
 
 // Flags for the controller
-#define MAX_EFFORT_ERR 1<<0
+#define MAX_EFFORT_ERR 1    // Bit for indicating effort too high
+#define CURRENT_MOVE   1<<1 // Bit for indicating movement in progress
 #define NO_FLAGS       0
 
 void TC5_Handler();

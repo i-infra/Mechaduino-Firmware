@@ -60,6 +60,8 @@
   #define IN_PER_ROT          0.0787402f
   #define UNITS_MM            1
   #define POS_ABSOLUTE        1<<1
+  #define DEFAULT_SPEED       10  // Mechaduino speeds
+  #define MAX_SPEED           300 // measured in RPM
 
 	void setupPins();                 // initializes pins
 	
@@ -139,6 +141,10 @@
 
   float interpolate_pos(float target);
 
+  float interpolate_vel(float target);
+
   float bound_pos(float target);
+
+  float bound_vel(float speed);
 
 #endif

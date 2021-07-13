@@ -572,6 +572,19 @@ float interpolate_pos(float target){
   return result;
 }
 
+float interpolate_vel(float target){
+  // Convert the target velocity in millimeters/min to the target rot/min
+  float result;
+  if(behavior & UNITS_MM){
+    result = (float)target /((float)MM_PER_ROT);
+  }
+  else{
+    result = (float)target /((float)IN_PER_ROT);
+  }
+  return result;
+}
+
+
 float bound_pos(float target){
   // Check if bounds are exceeded
   // These variables are poorly named... 
@@ -585,63 +598,133 @@ float bound_pos(float target){
   return target;
 }
 
+float bound_vel(float speed){
+  // Check if speed bounds are exceeded
+  // Takes a speed in RPM (not mm/min or in/min)
+  // and outputs the bounded feedrate
+  speed = abs(speed);
+  if(speed > MAX_SPEED){
+    speed = MAX_SPEED;
+  }
+
+  return speed;
+}
+
 void process_g(int code, char instruction[], int len){
-  float reading;
+  float reading_x, reading_misc;
+  float target;
+
   switch(code){
     case EMPTY:
       SerialUSB.println("Please give a command!");
       break;
     case RAPID_MOV:
       // Move to target point at maximum feedrate
-      reading = search_code('X', instruction, len);
-      if(reading == NOT_FOUND){
+      reading_x = search_code('X', instruction, len);
+      if(reading_x == NOT_FOUND){
         SerialUSB.println("Give a x position");
         return;
       }
 
       // Convert the reading 
-      reading = interpolate_pos(reading);
+      reading_x = interpolate_pos(reading_x);
 
       if(behavior & POS_ABSOLUTE){
         // If doing absolute positioning, use home as reference point
-        reading = xmin - reading;
+        reading_x = xmin - reading_x;
       }
       else{
         // Else, add on to current position
-        reading = yw - reading;
+        reading_x = yw - reading_x;
       }
 
       // Keep output position within boundaries
       mode = 'x';
-      r = bound_pos(reading);
+      r = bound_pos(reading_x);
       break;
     case LINEAR_MOV:
+      SerialUSB.println("Trying to lin move");
+      // Get the feedrate
+      reading_misc = search_code('F', instruction, len);
       // Move to target point at the feedrate (with acceleration)
+      reading_x = search_code('X', instruction, len);
+      if(reading_x == NOT_FOUND){
+        // If no x position is given, update the feedrate and return.
+        if(reading_misc != NOT_FOUND){
+          feedrate = bound_vel(interpolate_vel(reading_misc));
+        }
+        return;
+      }
+      // Otherwise, do the movement using the previous feedrate
+      // First, get the new position.
+      reading_x = interpolate_pos(reading_x);
+      if(behavior & POS_ABSOLUTE){
+        // If doing absolute positioning, use home as reference point
+        reading_x = xmin - reading_x;
+      }
+      else{
+        // Else, add on to current position
+        reading_x = yw - reading_x;
+      }
+      // Keep target within bounds
+      reading_x = bound_pos(reading_x);
+      SerialUSB.println("Current: " + String(yw));
+      SerialUSB.println("Target:  " + String(reading_x));
+      // Make sure the speed is nonzero
+      if(feedrate == 0){
+        feedrate = DEFAULT_SPEED;
+      }
+      // Find which direction to go.
+      // Start out holding position
+      mode = 'v';
+      r = 0;
+      target = yw - reading_x;
+      if(target < 0){
+        SerialUSB.println("increase yw, decrease mm");
+        // Move at speed feedrate to the target
+        r = feedrate;
+        SerialUSB.println(r);
+        // Idle while we reach there
+        while(yw < reading_x){
+          delayMicroseconds(FILTER_PERIOD_US);
+        }
+      }
+      else if (target > 0){
+        SerialUSB.println("decrease yw, increase mm");
+        r = -feedrate;
+        SerialUSB.println(r);
+        while(yw > reading_x){
+          delayMicroseconds(FILTER_PERIOD_US);
+        }
+      }
 
-      
+      // Hold current position
+      mode = 'x';
+      r = reading_x;
+
+      // Update the feedrate
+      if(reading_misc != NOT_FOUND){
+        feedrate = bound_vel(interpolate_vel(reading_misc));
+      }
       break;
 
     case SET_ABS:
       // Set absolute positioning
-      SerialUSB.print(behavior);
       behavior |= POS_ABSOLUTE;
       break;
 
     case SET_REL:  
       // Set relative positioning
-      SerialUSB.print(behavior);
       behavior &= ~(POS_ABSOLUTE);
       break;
 
     case CHANGE_UNIT_IN:
       // Change units to inches
-      SerialUSB.print(behavior);
       behavior &= ~(UNITS_MM);
       break;
 
     case CHANGE_UNIT_MM:
       // Change units to mm
-      SerialUSB.print(behavior);
       behavior |= UNITS_MM;
       break;
     case SET_HOME:
@@ -669,14 +752,17 @@ void process_g(int code, char instruction[], int len){
       // In any case, move to 0 at the end.
       break;
     case DWELL:
-      reading = search_code('P', instruction, len);
-      if(reading != NOT_FOUND)
-        delay((int)reading);
+      reading_misc = search_code('P', instruction, len);
+      if(reading_misc != NOT_FOUND){
+        delay((int)reading_misc);
+      }
+      else{
+        SerialUSB.println("Give a dwell time");
+      }
     break;
     default:
       SerialUSB.println("This hasn't been implemented yet");
   }
-  SerialUSB.println(behavior);
   return;
 }
 
@@ -687,16 +773,18 @@ void calib_home(){
       return;
     }
   }
-  // Get initial angle calibration (will return to this later)
-  
+  // Get initial angle calibration (will return to this later)  
   // Move as far "in" as possible before hitting a high-effort region
   // Make this the new 0
-  disableTCInterrupts(); // No need to move while we are still doing setup
   SerialUSB.println("Trying to calibrate");
   mode = 'v';            // Velocity mode
-  r = HOMING_SPEED;   // Move to 0 at HOMING_SPEED
+  // Change directions a bit to get the motor moving
+  r = -HOMING_SPEED;
   enableTCInterrupts();  // Start moving!
+  delay(SETTLE_TIME);
+  r = HOMING_SPEED;      // Move to 0 at HOMING_SPEED
   SerialUSB.println("Moving!");
+  SerialUSB.println(String(mode) + ", " + String(r));
 
   while(abs(u_roll) < UNLOADED_EFFORT_LIM){
     delayMicroseconds(FILTER_PERIOD_US); // Idle while waiting for limit to be hit

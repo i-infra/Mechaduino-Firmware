@@ -28,6 +28,7 @@ extern volatile long counter;
 extern float xmax;
 extern float xmin;
 extern unsigned int behavior;
+extern float feedrate;
 
 extern volatile long wrap_count;
 extern volatile float y_1;
