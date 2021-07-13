@@ -62,6 +62,6 @@ void loop()                 // main loop
   if(prevTime + timeDelay < currTime){
     prevTime = currTime;
     // Send out the current time, the position, and the "effort"
-    SerialUSB.print(String(currTime) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + "\n\r");
+   // SerialUSB.print(String(currTime) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + "\n\r");
   }
 }

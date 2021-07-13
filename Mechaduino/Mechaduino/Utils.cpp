@@ -178,8 +178,13 @@ int calibrate() {   /// this is the calibration routine
   int ticks = 0;
   float lookupAngle = 0.0;
   // Start out in mm mode and absolute positioning
-  behavior = behavior | UNITS_MM | POS_ABSOLUTE;
+  behavior |= (UNITS_MM | POS_ABSOLUTE);
   SerialUSB.println("Beginning calibration routine...");
+  // Take a couple steps to make sure it's working right
+  oneStep();
+  delay(SETTLE_TIME);
+  oneStep();
+  delay(READ_TIME);
   for (int reading = 0; reading < avg; reading++) {  //average multple readings at each step
     currentencoderReading = mod(readEncoder(),cpr);
     encoderReading += currentencoderReading;
@@ -603,7 +608,7 @@ void process_g(int code, char instruction[], int len){
       }
       else{
         // Else, add on to current position
-        reading = yw + reading;
+        reading = yw - reading;
       }
 
       // Keep output position within boundaries
@@ -615,21 +620,29 @@ void process_g(int code, char instruction[], int len){
 
       
       break;
+
     case SET_ABS:
       // Set absolute positioning
-      behavior = behavior | POS_ABSOLUTE;
+      SerialUSB.print(behavior);
+      behavior |= POS_ABSOLUTE;
       break;
+
     case SET_REL:  
       // Set relative positioning
-      behavior = behavior & ~POS_ABSOLUTE;
+      SerialUSB.print(behavior);
+      behavior &= ~(POS_ABSOLUTE);
       break;
+
     case CHANGE_UNIT_IN:
       // Change units to inches
-      behavior = behavior & ~UNITS_MM;
+      SerialUSB.print(behavior);
+      behavior &= ~(UNITS_MM);
       break;
+
     case CHANGE_UNIT_MM:
       // Change units to mm
-      behavior = behavior | UNITS_MM;
+      SerialUSB.print(behavior);
+      behavior |= UNITS_MM;
       break;
     case SET_HOME:
       // Set the current location to home
@@ -663,6 +676,7 @@ void process_g(int code, char instruction[], int len){
     default:
       SerialUSB.println("This hasn't been implemented yet");
   }
+  SerialUSB.println(behavior);
   return;
 }
 

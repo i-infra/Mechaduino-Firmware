@@ -27,7 +27,7 @@ extern volatile long counter;
 
 extern float xmax;
 extern float xmin;
-extern int  behavior;
+extern unsigned int behavior;
 
 extern volatile long wrap_count;
 extern volatile float y_1;
@@ -39,7 +39,7 @@ extern int stepNumber; // step index for cal routine
 extern volatile float ITerm;
 extern volatile float DTerm;
 extern char mode;
-extern int dir;
+extern volatile bool dir;
 
 extern volatile float u_roll; 
 extern volatile float u_roll_1; 

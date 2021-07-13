@@ -4,7 +4,7 @@
 #define __UTIL_H__
   // Defines for ASCII character manipulation
   // Boolean expressions detecting particular characters
-  #define IS_NUMBER(ch)  ((((int)ch < 58) && ((int)ch > 47)) || ((int)ch == 46))
+  #define IS_NUMBER(ch)  ((((int)ch < 58) && ((int)ch > 47)) || ((int)ch == 46) || ((int)ch == 45))
   #define IS_CAPITAL(ch) (((int)ch < 91) && ((int)ch > 64))
   #define END_OF_LINE(ch)(((char)ch == '\n') || ((char)ch == '\r'))
   // Indicates when a command is not found
@@ -58,7 +58,7 @@
   // Rod thread - millimeters per rotation
   #define MM_PER_ROT          2
   #define IN_PER_ROT          0.0787402f
-  #define UNITS_MM            1<<0
+  #define UNITS_MM            1
   #define POS_ABSOLUTE        1<<1
 
 	void setupPins();                 // initializes pins
