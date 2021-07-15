@@ -602,17 +602,22 @@ float bound_vel(float speed){
   // Check if speed bounds are exceeded
   // Takes a speed in RPM (not mm/min or in/min)
   // and outputs the bounded feedrate
-  speed = abs(speed);
-  if(speed > MAX_SPEED){
-    speed = MAX_SPEED;
+  float abs_speed = abs(speed);
+  if(abs_speed > MAX_SPEED){
+    abs_speed = MAX_SPEED;
+  }
+  else if(abs_speed < MIN_SPEED){
+    abs_speed = MIN_SPEED;
   }
 
-  return speed;
+  // Return the adjusted velocity (with correct sign)
+  return abs_speed * (speed/abs(speed));
 }
 
 void process_g(int code, char instruction[], int len){
   float reading_x, reading_misc;
-  float target;
+  float velocity, currentPos;
+  float speed_slope, speed_offset;
 
   switch(code){
     case EMPTY:
@@ -643,20 +648,23 @@ void process_g(int code, char instruction[], int len){
       r = bound_pos(reading_x);
       break;
     case LINEAR_MOV:
-      SerialUSB.println("Trying to lin move");
-      // Get the feedrate
+      // Very first thing we do is capture yw so it doesn't change
+      currentPos = yw;
+      // First, we handle the case "G1 Fxxx" and set the feedrate to xxx without
+      // doing any movement. This occurs when there is no X command.
       reading_misc = search_code('F', instruction, len);
-      // Move to target point at the feedrate (with acceleration)
       reading_x = search_code('X', instruction, len);
       if(reading_x == NOT_FOUND){
         // If no x position is given, update the feedrate and return.
         if(reading_misc != NOT_FOUND){
-          feedrate = bound_vel(interpolate_vel(reading_misc));
+          feedrate = interpolate_vel(reading_misc);
         }
         return;
       }
-      // Otherwise, do the movement using the previous feedrate
-      // First, get the new position.
+      // Otherwise, we have something like "G1 Xxxx" or "G1 Xxxx Fxxx"
+      // Find the target position, depending on whether
+      // we are in absolute or relative mode
+      // Convert from mm/in to degrees
       reading_x = interpolate_pos(reading_x);
       if(behavior & POS_ABSOLUTE){
         // If doing absolute positioning, use home as reference point
@@ -664,48 +672,76 @@ void process_g(int code, char instruction[], int len){
       }
       else{
         // Else, add on to current position
-        reading_x = yw - reading_x;
+        reading_x = currentPos - reading_x;
       }
-      // Keep target within bounds
-      reading_x = bound_pos(reading_x);
-      SerialUSB.println("Current: " + String(yw));
-      SerialUSB.println("Target:  " + String(reading_x));
-      // Make sure the speed is nonzero
-      if(feedrate == 0){
-        feedrate = DEFAULT_SPEED;
+      // Next, calculate the speed_offset and speed_slope
+      // If we don't have a "Fxxx", speed_slope = 0 and speed_offset is the feedrate
+      if(reading_misc == NOT_FOUND){
+        speed_slope = 0;
+        // Sign of the speed_offset depends on what direction we want to go
+        if(reading_x > currentPos){
+          speed_offset = -feedrate;
+        }
+        else if(reading_x < currentPos){
+          speed_offset = feedrate;
+        }
+        else{
+          // If they are the same, just don't move and return out of here.
+          mode = 'x';
+          r = reading_x;
+          return;
+        }
       }
-      // Find which direction to go.
-      // Start out holding position
+      // If we are given "Fxxx", we want to linearly interpolate between the 
+      // current feedrate and the target feedrate (uniform acceleration)
+      else{
+        // First, turn the velocity from mm/min to RPM
+        reading_misc = interpolate_vel(reading_misc);
+        // We want to update the velocity as a function of the
+        // time elapsed; v_new = speed_offset + time * speed_slope
+        // First, we calculate the amount of time we expect to elapse
+        TODO
+        // Here, we compute speed_offset and speed_slope
+        speed_slope = (reading_misc - feedrate)/(reading_x - currentPos);
+        speed_offset = feedrate - speed_slope * currentPos; 
+        // The new starting feedrate is the ending feedrate from the previous command
+        feedrate = reading_misc;       
+      }
+      // Go to velocity mode and set the velocity to 0 initially
       mode = 'v';
       r = 0;
-      target = yw - reading_x;
-      if(target < 0){
-        SerialUSB.println("increase yw, decrease mm");
-        // Move at speed feedrate to the target
-        r = feedrate;
-        SerialUSB.println(r);
-        // Idle while we reach there
-        while(yw < reading_x){
-          delayMicroseconds(FILTER_PERIOD_US);
+      // Next, behavior depends on which direction we want to go
+      reading_x = bound_pos(reading_x);
+      if(reading_x > currentPos){
+        // If we need to increase yw, go into a loop where we manage this
+        while(reading_x > yw){
+          velocity = speed_offset + (yw * speed_slope);
+          // Keep velocity in bounds
+          velocity = bound_vel(velocity);
+          r = velocity;
+          delayMicroseconds(FILTER_PERIOD_US/2);
+          SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + "\n\r");
         }
       }
-      else if (target > 0){
-        SerialUSB.println("decrease yw, increase mm");
-        r = -feedrate;
-        SerialUSB.println(r);
-        while(yw > reading_x){
-          delayMicroseconds(FILTER_PERIOD_US);
+      else if(reading_x < currentPos){
+        while(reading_x < yw){
+          velocity = speed_offset + (yw * speed_slope);
+          // Keep velocity in bounds
+          velocity = bound_vel(velocity);
+          r = -velocity;
+          delayMicroseconds(FILTER_PERIOD_US/2);
+          SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + "\n\r");
         }
       }
-
-      // Hold current position
+      else{
+        // If they are the same, just don't move and return out of here.
+        mode = 'x';
+        r = reading_x;
+        return;
+      }
+      // Hold final position
       mode = 'x';
-      r = reading_x;
-
-      // Update the feedrate
-      if(reading_misc != NOT_FOUND){
-        feedrate = bound_vel(interpolate_vel(reading_misc));
-      }
+      r = bound_pos(reading_x);
       break;
 
     case SET_ABS:
@@ -784,7 +820,6 @@ void calib_home(){
   delay(SETTLE_TIME);
   r = HOMING_SPEED;      // Move to 0 at HOMING_SPEED
   SerialUSB.println("Moving!");
-  SerialUSB.println(String(mode) + ", " + String(r));
 
   while(abs(u_roll) < UNLOADED_EFFORT_LIM){
     delayMicroseconds(FILTER_PERIOD_US); // Idle while waiting for limit to be hit

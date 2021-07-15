@@ -61,6 +61,7 @@
   #define UNITS_MM            1
   #define POS_ABSOLUTE        1<<1
   #define DEFAULT_SPEED       10  // Mechaduino speeds
+  #define MIN_SPEED           1
   #define MAX_SPEED           300 // measured in RPM
 
 	void setupPins();                 // initializes pins
