@@ -581,7 +581,7 @@ float interpolate_vel(float target){
   else{
     result = (float)target /((float)IN_PER_ROT);
   }
-  return result;
+  return abs(result);
 }
 
 
@@ -614,23 +614,126 @@ float bound_vel(float speed){
   return abs_speed * (speed/abs(speed));
 }
 
+void linear_move_action(float reading_x, float reading_misc){
+  // This linear move first assumes the target point is possible to reach
+  // and all velocites are possible. It then calculates the speed as a function
+  // of position, then bounds the speed and positions accoridng to MIN_SPEED, MAX_SPEED,
+  // x_min, and x_max, and performs the movement.
+  //
+  // Speed as a function of position is more difficult to implement compared
+  // to simply making speed linear with time, but it makes the operation more robust;
+  // if the carriage is blocked for a second, it will not get to the target destination
+  // and there will be a spike in acceleration for a bit after it is released.
+  // Speed as a function of position makes it possible to easily recover from
+  // being stopped for a bit and quickly return to the expected acceleration
+  // value without undershooting the target.
+
+  float velocity, x_init, x_final, sign;
+  float velocity_init, velocity_fin;
+
+  float deltaV, deltaX, accel, v_init_sqare, time, v_intermediate;
+
+  // Very first thing we do is capture yw so it doesn't change
+  x_init = yw;
+
+  // Convert from mm/in to degrees
+  // Find the target position, depending on whether we are in absolute or relative mode
+  reading_x = interpolate_pos(reading_x);
+  if(behavior & POS_ABSOLUTE){
+    // If doing absolute positioning, use home as reference point
+    reading_x = xmin - reading_x;
+  }
+  else{
+    // Else, add on to current position
+    reading_x = x_init - reading_x;
+  }
+
+  // Next, figure out which direction we want to go
+  sign  = (reading_x > x_init) - (reading_x < x_init);
+  // Sign is 0 when equal, 1 when reading_x > x_init, and -1 otherwise.
+  // If reading_x > x_init, we want positive velocity and an increase in
+  // the x position relative to our target. Otherwise, we want a negative velocity.
+  velocity_init = feedrate * sign;
+  
+  // If we don't have a second feedrate, the final velocity is the same as initial
+  if(reading_misc == NOT_FOUND){
+    velocity_fin = velocity_init;
+  }
+  else{
+    // If we do have a second feedrate, update the feedrate variable and
+    // the final velocity with the value in the command.
+    feedrate = interpolate_vel(reading_misc);
+    velocity_fin = sign * feedrate;
+  }
+
+  // Save our final desitnation, even if it's out of bounds. This lets us
+  // accelerate/decellerate correctly for the in-bounds portion of the travel
+  x_final = reading_x;
+  // Bound the position to stay in bounds when actually moving
+  reading_x = bound_pos(reading_x);
+  // We can pre-calculate some useful values so we aren't wasting time in the loop
+  deltaV = velocity_fin - velocity_init;
+  deltaX = x_final - x_init;
+  v_init_sqare = velocity_init * velocity_init;
+  v_intermediate = (velocity_init - (1/2)*deltaV);
+  accel = (deltaV * deltaX)/v_intermediate;
+  // Go to velocity mode with 0 velocity for now...
+  // velocity will soon be updated in the while loop
+  mode = 'v';
+  r = 0;
+  // Start a loop - keep moving until bound is reached
+  SerialUSB.println("v_init: " + String(velocity_init) + ", v_finl: " + String(velocity_fin) + "\nx_init: " + String(x_init) + ", x_finl: " + String(x_final));
+  SerialUSB.println(deltaV);
+  SerialUSB.println(deltaX);
+  SerialUSB.println(v_init_sqare);
+  SerialUSB.println(v_intermediate);
+  SerialUSB.println(accel);
+  while(sign * yw < sign * reading_x){
+    // How Does THis Loop Work? Let's look at an example because I keep confusing
+    // myself with this. 
+    // Example 1: reading_x = -100, x_init = 1. We see that sign = -1
+    // so we want a negative velocity and we want to keep looping until
+    // yw <= reading_x. thus, keep looping while yw*(-1) < reading_x*(-1)
+    // Example 2: reading_x = 100, x_init = 1, sign = + 1, keep looping until
+    // yw >= reading_x, loop while yw < reading_x
+
+    // OK now to update the velocity...
+    if(abs(x_init-yw) < SMALL_DIST_LIMIT){
+      time = 0;
+    }
+    else{
+      time = (-velocity_init - sign*(v_init_sqare - (2*deltaV*(x_init - yw)*v_intermediate)/(deltaX)))/(2 * (x_init-yw));
+    }
+    SerialUSB.println(time);
+    return;
+    velocity = velocity_init + accel * time;
+  }
+
+  // Hold final position
+  // WARNING: this may cause sudden acceleration/decelleration!
+  // This in turn causes brief overshoot which quickly gets corrected
+  // TODO: fix this problem
+  mode = 'x';
+  r = reading_x;
+  return;
+}
+
 void process_g(int code, char instruction[], int len){
-  float reading_x, reading_misc;
-  float velocity, currentPos;
-  float speed_slope, speed_offset;
+  float reading_x, reading_misc;          // For managing the readings
 
   switch(code){
     case EMPTY:
       SerialUSB.println("Please give a command!");
       break;
+
     case RAPID_MOV:
       // Move to target point at maximum feedrate
+      // This is easy to do so we are handling this case right here.
       reading_x = search_code('X', instruction, len);
       if(reading_x == NOT_FOUND){
         SerialUSB.println("Give a x position");
         return;
       }
-
       // Convert the reading 
       reading_x = interpolate_pos(reading_x);
 
@@ -642,14 +745,12 @@ void process_g(int code, char instruction[], int len){
         // Else, add on to current position
         reading_x = yw - reading_x;
       }
-
       // Keep output position within boundaries
       mode = 'x';
       r = bound_pos(reading_x);
+      // TODO: loop until target reached
       break;
     case LINEAR_MOV:
-      // Very first thing we do is capture yw so it doesn't change
-      currentPos = yw;
       // First, we handle the case "G1 Fxxx" and set the feedrate to xxx without
       // doing any movement. This occurs when there is no X command.
       reading_misc = search_code('F', instruction, len);
@@ -662,86 +763,8 @@ void process_g(int code, char instruction[], int len){
         return;
       }
       // Otherwise, we have something like "G1 Xxxx" or "G1 Xxxx Fxxx"
-      // Find the target position, depending on whether
-      // we are in absolute or relative mode
-      // Convert from mm/in to degrees
-      reading_x = interpolate_pos(reading_x);
-      if(behavior & POS_ABSOLUTE){
-        // If doing absolute positioning, use home as reference point
-        reading_x = xmin - reading_x;
-      }
-      else{
-        // Else, add on to current position
-        reading_x = currentPos - reading_x;
-      }
-      // Next, calculate the speed_offset and speed_slope
-      // If we don't have a "Fxxx", speed_slope = 0 and speed_offset is the feedrate
-      if(reading_misc == NOT_FOUND){
-        speed_slope = 0;
-        // Sign of the speed_offset depends on what direction we want to go
-        if(reading_x > currentPos){
-          speed_offset = -feedrate;
-        }
-        else if(reading_x < currentPos){
-          speed_offset = feedrate;
-        }
-        else{
-          // If they are the same, just don't move and return out of here.
-          mode = 'x';
-          r = reading_x;
-          return;
-        }
-      }
-      // If we are given "Fxxx", we want to linearly interpolate between the 
-      // current feedrate and the target feedrate (uniform acceleration)
-      else{
-        // First, turn the velocity from mm/min to RPM
-        reading_misc = interpolate_vel(reading_misc);
-        // We want to update the velocity as a function of the
-        // time elapsed; v_new = speed_offset + time * speed_slope
-        // First, we calculate the amount of time we expect to elapse
-        TODO
-        // Here, we compute speed_offset and speed_slope
-        speed_slope = (reading_misc - feedrate)/(reading_x - currentPos);
-        speed_offset = feedrate - speed_slope * currentPos; 
-        // The new starting feedrate is the ending feedrate from the previous command
-        feedrate = reading_misc;       
-      }
-      // Go to velocity mode and set the velocity to 0 initially
-      mode = 'v';
-      r = 0;
-      // Next, behavior depends on which direction we want to go
-      reading_x = bound_pos(reading_x);
-      if(reading_x > currentPos){
-        // If we need to increase yw, go into a loop where we manage this
-        while(reading_x > yw){
-          velocity = speed_offset + (yw * speed_slope);
-          // Keep velocity in bounds
-          velocity = bound_vel(velocity);
-          r = velocity;
-          delayMicroseconds(FILTER_PERIOD_US/2);
-          SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + "\n\r");
-        }
-      }
-      else if(reading_x < currentPos){
-        while(reading_x < yw){
-          velocity = speed_offset + (yw * speed_slope);
-          // Keep velocity in bounds
-          velocity = bound_vel(velocity);
-          r = -velocity;
-          delayMicroseconds(FILTER_PERIOD_US/2);
-          SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + "\n\r");
-        }
-      }
-      else{
-        // If they are the same, just don't move and return out of here.
-        mode = 'x';
-        r = reading_x;
-        return;
-      }
-      // Hold final position
-      mode = 'x';
-      r = bound_pos(reading_x);
+      // Hop into a function to do this
+      linear_move_action(reading_x, reading_misc);
       break;
 
     case SET_ABS:
@@ -768,6 +791,7 @@ void process_g(int code, char instruction[], int len){
       xmin = yw;
       break;  
     case HOME:
+      // This too is straightforward to implement so we are doing it here.
       // If no parameters are given, calibrate position and go home.
       // If axes are given, home the given axes without calibrating position.
       // Only the x-axis is implemented; search for x
@@ -785,7 +809,6 @@ void process_g(int code, char instruction[], int len){
         mode = 'x';
         r = xmin;
       }
-      // In any case, move to 0 at the end.
       break;
     case DWELL:
       reading_misc = search_code('P', instruction, len);

@@ -148,4 +148,6 @@
 
   float bound_vel(float speed);
 
+  void linear_move_action(float reading_x, float reading_misc);
+
 #endif
