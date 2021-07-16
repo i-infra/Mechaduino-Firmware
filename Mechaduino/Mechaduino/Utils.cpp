@@ -675,7 +675,7 @@ void linear_move_action(float reading_x, float reading_misc){
   deltaV = velocity_fin - velocity_init;
   deltaX = x_final - x_init;
   v_init_sqare = velocity_init * velocity_init;
-  v_intermediate = (velocity_init - (1/2)*deltaV);
+  v_intermediate = (velocity_init) + (deltaV/2.0);
   accel = (deltaV * deltaX)/v_intermediate;
   // Go to velocity mode with 0 velocity for now...
   // velocity will soon be updated in the while loop
@@ -699,14 +699,16 @@ void linear_move_action(float reading_x, float reading_misc){
 
     // OK now to update the velocity...
     if(abs(x_init-yw) < SMALL_DIST_LIMIT){
+      // we don't want negative time
       time = 0;
     }
     else{
-      time = (-velocity_init - sign*(v_init_sqare - (2*deltaV*(x_init - yw)*v_intermediate)/(deltaX)))/(2 * (x_init-yw));
+      time = v_intermediate * (-velocity_init + sign*sqrt(v_init_sqare - (2*deltaV*(x_init - yw)*v_intermediate)/(deltaX)))/(deltaV * deltaX);
     }
-    SerialUSB.println(time);
-    return;
     velocity = velocity_init + accel * time;
+    r = bound_vel(velocity);
+    delay(10);
+    SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + ", " + String(velocity) + ", " + String(time) + "\n");
   }
 
   // Hold final position

@@ -63,6 +63,7 @@
   #define DEFAULT_SPEED       10  // Mechaduino speeds
   #define MIN_SPEED           1
   #define MAX_SPEED           300 // measured in RPM
+  #define SMALL_DIST_LIMIT    0.5 // measured in degrees
 
 	void setupPins();                 // initializes pins
 	
