@@ -13,7 +13,8 @@ volatile unsigned int controller_flag = NO_FLAGS;
 volatile float u_roll = 0;
 volatile float u_roll_1 = 0;
 volatile float u_past[FILTER_LEN];
-volatile unsigned long past_time = 0;
+volatile unsigned long past_filter_time = 0;
+volatile unsigned long past_move_time = 0;
 
 void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
   if (TC5->COUNT16.INTFLAG.bit.OVF == 1) {        // A counter overflow caused the interrupt
@@ -89,25 +90,20 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
   u_1 = u;
   yw_1 = yw;
   
-  // TODO: Check if effort exceeds limit AND velocity is below limit
-  // i.e. trying to move, but blocked.
-  
-  // Check to make sure the limit threshold isn't exceeded
+  // Stop moving if effort is exceeded
   if(U > EFFORT_MAX && mode == 'v'){
-    // Stop moving and hold at position until some other function
-    // handles the flag.
     r = 0;
     // Set the MAX_EFFORT_ERR flag
-    controller_flag |= MAX_EFFORT_ERR;
+    controller_flag |= 1<<MAX_EFFORT_ERR;
   }
 
   // Shift in new value and take the average to get the filtered effort
   // Do the following with period FILTER_PERIOD_US
   unsigned long current_time = micros();  
-  if((current_time - FILTER_PERIOD_US) > past_time){
+  if((current_time - FILTER_PERIOD_US) > past_filter_time){
     u_roll_1 = u_roll;
     u_roll = 0;
-    past_time = current_time;
+    past_filter_time = current_time;
     
     for(int i = FILTER_LEN-1; i >= 1; i--){
       // Shift in a new value and do avg
@@ -117,6 +113,32 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
     u_past[0] = u;
     u_roll += u;
     u_roll = u_roll / FILTER_LEN;
+  }
+
+  // This is the bit of code that manages movement so the
+  // main loop can do other stuff.
+  // We don't need to set the speed or check the time during
+  // every cycle; set the period with MOVE_CTRL_US
+  if((current_time - MOVE_CTRL_US) > past_move_time){
+    past_move_time = current_time;
+    // Consider the cases: 
+    unsigned int command = (controller_flag & COMMAND_MASK)>>COMMAND_SHIFT;
+    switch(command){
+      case STOP_COMMAND:
+        break;
+      case MOVE_COMMAND:
+        // We are busy until we are at the target destination.
+        controller_flag &= ~((abs(yw-target) > SMALL_DIST_LIMIT)<<BUSY);
+        break;
+      case LINEAR_COMMAND:
+        break;
+      case DWELL_COMMAND:
+        // millis()-data1 is milliseconds elaped since the dwell was called
+        // Thus, the busy bit is only cleared target time has elapsed.
+        controller_flag &= ~(((millis()-data1) > target)<<BUSY);
+        break;
+
+    }
   }
 
   

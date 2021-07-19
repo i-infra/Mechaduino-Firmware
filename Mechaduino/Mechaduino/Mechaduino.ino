@@ -63,7 +63,7 @@ void loop()                 // main loop
     prevTime = currTime;
     // Send out the current time, the position, and the "effort"
    // SerialUSB.print(String(currTime) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + "\n\r");
-       SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll)  + "\n");
+       //SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll)  + "\n");
 
   }
 }

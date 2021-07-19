@@ -28,10 +28,9 @@ volatile long counter = 0;
 float xmin = 0;
 float xmax = 0;
 unsigned int  behavior = UNITS_MM | POS_ABSOLUTE; // Start with millimeters and abs pos
-float feedrate = DEFAULT_SPEED;
-float accel = 0;
-float speed_offset = 0;
+volatile float feedrate = DEFAULT_SPEED;
 volatile float target = 0;
+volatile float data1 = 0;
 
 volatile long wrap_count = 0;  //keeps track of how many revolutions the motor has gone though (so you can command angles outside of 0-360)
 volatile float y_1 = 0;

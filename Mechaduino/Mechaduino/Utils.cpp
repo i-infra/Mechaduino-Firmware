@@ -497,7 +497,6 @@ void process_string(char instruction[], int len){
    // Commands To Implement:
    //   G0:      Rapid Move - Uses the trapezoidal movement pattern, max speed
    //   G1:      Linear Move - Move at speed set by speed set command
-   //   M220:    Set speed factor override percentage
    //   G20/G21: Set Units to Inches/Millimeters
    //   G28:     Home/Level - Find max and min displacement of motor and home it
 
@@ -699,11 +698,14 @@ void linear_move_action(float reading_x, float reading_misc){
 
     // OK now to update the velocity...
     if(abs(x_init-yw) < SMALL_DIST_LIMIT){
-      // we don't want negative time
+      // we don't want negative time; this helps make sure small
+      // changes in the initial position don't cause problems
       time = 0;
     }
     else{
-      time = v_intermediate * (-velocity_init + sign*sqrt(v_init_sqare - (2*deltaV*(x_init - yw)*v_intermediate)/(deltaX)))/(deltaV * deltaX);
+      // This should always be positive, but we are taking the abs
+      // just to be safe.
+      time = abs(v_intermediate * (-velocity_init + sign*sqrt(v_init_sqare - (2*deltaV*(x_init - yw)*v_intermediate)/(deltaX)))/(deltaV * deltaX));
     }
     velocity = velocity_init + accel * time;
     r = bound_vel(velocity);
@@ -722,6 +724,9 @@ void linear_move_action(float reading_x, float reading_misc){
 
 void process_g(int code, char instruction[], int len){
   float reading_x, reading_misc;          // For managing the readings
+
+  // Clear the command bits
+  controller_flag &= ~COMMAND_MASK;
 
   switch(code){
     case EMPTY:
@@ -750,7 +755,10 @@ void process_g(int code, char instruction[], int len){
       // Keep output position within boundaries
       mode = 'x';
       r = bound_pos(reading_x);
-      // TODO: loop until target reached
+      //loop until target reached
+      while(controller_flag & 1<<BUSY){
+        SerialUSB.println(yw-reading_x);
+      }
       break;
     case LINEAR_MOV:
       // First, we handle the case "G1 Fxxx" and set the feedrate to xxx without
@@ -815,7 +823,18 @@ void process_g(int code, char instruction[], int len){
     case DWELL:
       reading_misc = search_code('P', instruction, len);
       if(reading_misc != NOT_FOUND){
-        delay((int)reading_misc);
+        // Set global variables with timing info
+        // and the command that we are doing
+        target = reading_misc;
+        data1 = millis();
+        controller_flag |= 1<<BUSY;
+        controller_flag |= DWELL_COMMAND<<COMMAND_SHIFT;
+        // We are now busy; wait until the controller says we are done
+        while(controller_flag & 1<<BUSY){
+          SerialUSB.println(~(((millis()-data1) > target)<<BUSY),BIN);
+          SerialUSB.println(controller_flag,BIN);
+        }
+        // tODO: get rid of this while^^
       }
       else{
         SerialUSB.println("Give a dwell time");
@@ -1137,8 +1156,8 @@ void setupTCInterrupts() {  // configure the controller interrupt
   NVIC_EnableIRQ(TC5_IRQn);
 
   // Enable TC
-  //  TC5->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
-  //  WAIT_TC16_REGS_SYNC(TC5)
+  TC5->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+  WAIT_TC16_REGS_SYNC(TC5)
 }
 
 void enableTCInterrupts() {   //enables the controller interrupt ("closed loop mode")
