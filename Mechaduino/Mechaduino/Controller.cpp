@@ -119,18 +119,50 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
   // main loop can do other stuff.
   // We don't need to set the speed or check the time during
   // every cycle; set the period with MOVE_CTRL_US
+
+  float time, velocity; //, sign;
+  // Consider the cases: 
+  unsigned int command = (controller_flag & COMMAND_MASK)>>COMMAND_SHIFT;
   if((current_time - MOVE_CTRL_US) > past_move_time){
     past_move_time = current_time;
-    // Consider the cases: 
-    unsigned int command = (controller_flag & COMMAND_MASK)>>COMMAND_SHIFT;
     switch(command){
       case STOP_COMMAND:
         break;
       case MOVE_COMMAND:
         // We are busy until we are at the target destination.
-        controller_flag &= ~((abs(yw-target) > SMALL_DIST_LIMIT)<<BUSY);
+        controller_flag &= ~((abs(yw-r) < SMALL_DIST_LIMIT)<<BUSY);
         break;
       case LINEAR_COMMAND:
+        // again, we are busy until we reach our target
+        controller_flag &= ~((abs(yw-target) < SMALL_DIST_LIMIT)<<BUSY);
+        // if we haven't reached our target yet, get moving
+        if (controller_flag & 1<<BUSY){
+          // if accel = 0, go at const speed.
+          if(data6 == 0){
+            r = bound_vel(data3);
+            time = 0;
+            velocity = r;
+          }
+          // otherwise, speed is f(position)
+          else{
+            time = abs(data1 * (data2 + sqrt(data3*data3 - data4*(data5-yw))));
+            velocity = data3 + data6 * time;
+            r = bound_vel(velocity);
+          }
+        }
+        // if we did reach the target, stop moving
+        else {
+          mode = 'x';
+          r = target;
+        }
+        // time to do floating point math to set the velocity
+        
+        // overshoot correction: if r*MOVE_CTRL_US makes us overshoot, just go to the position
+        // sign = (r>0) - (r<0);
+        // if((sign * (r * MOVE_CTRL_US *360 /(1000000*60)) > sign * (target-yw)) || !(controller_flag&(1<<BUSY))){
+        //   mode = 'x';
+        //   r = target;
+        // }
         break;
       case DWELL_COMMAND:
         // millis()-data1 is milliseconds elaped since the dwell was called

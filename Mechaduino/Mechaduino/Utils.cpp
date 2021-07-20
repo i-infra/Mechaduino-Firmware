@@ -177,8 +177,6 @@ int calibrate() {   /// this is the calibration routine
   int fullStep = 0;
   int ticks = 0;
   float lookupAngle = 0.0;
-  // Start out in mm mode and absolute positioning
-  behavior |= (UNITS_MM | POS_ABSOLUTE);
   SerialUSB.println("Beginning calibration routine...");
   // Take a couple steps to make sure it's working right
   oneStep();
@@ -499,6 +497,9 @@ void process_string(char instruction[], int len){
    //   G1:      Linear Move - Move at speed set by speed set command
    //   G20/G21: Set Units to Inches/Millimeters
    //   G28:     Home/Level - Find max and min displacement of motor and home it
+   //   G90/91:  Absolute/Relative position
+   //   G92:     Set new home
+ 
 
   unsigned int code;
   code = search_code('G', instruction, len);
@@ -562,7 +563,7 @@ float search_code(char key, char instruction[], int string_size)
 float interpolate_pos(float target){
   // Convert the target position in millimeters to the target degree rotation
   float result;
-  if(behavior & UNITS_MM){
+  if(controller_flag & 1<<UNITS_MM){
     result = (float)target * (360.0/((float)MM_PER_ROT));
   }
   else{
@@ -574,7 +575,7 @@ float interpolate_pos(float target){
 float interpolate_vel(float target){
   // Convert the target velocity in millimeters/min to the target rot/min
   float result;
-  if(behavior & UNITS_MM){
+  if(controller_flag & 1<<UNITS_MM){
     result = (float)target /((float)MM_PER_ROT);
   }
   else{
@@ -638,7 +639,7 @@ void linear_move_action(float reading_x, float reading_misc){
   // Convert from mm/in to degrees
   // Find the target position, depending on whether we are in absolute or relative mode
   reading_x = interpolate_pos(reading_x);
-  if(behavior & POS_ABSOLUTE){
+  if(controller_flag & 1<<POS_ABSOLUTE){
     // If doing absolute positioning, use home as reference point
     reading_x = xmin - reading_x;
   }
@@ -676,49 +677,32 @@ void linear_move_action(float reading_x, float reading_misc){
   v_init_sqare = velocity_init * velocity_init;
   v_intermediate = (velocity_init) + (deltaV/2.0);
   accel = (deltaV * deltaX)/v_intermediate;
+  // Load up the global variables with the pre-calculated values
+  target = reading_x;
+  // t = (D1)*(D2 + SQRT(D3**2 -D4(D5-yw)))
+  // We see we need 5 precomputed global variables
+  data1 = (v_intermediate/(deltaV * deltaX)) * sign;
+  data2 = -velocity_init*sign;
+  data3 = velocity_init;
+  data4 = 2*deltaV*v_intermediate/deltaX;
+  data5 = x_init;
+  data6 = accel;
+  SerialUSB.println(data1);
+  SerialUSB.println(data2);
+  SerialUSB.println(data3);
+  SerialUSB.println(data4);
+  SerialUSB.println(data5);
+  SerialUSB.println(data6);
   // Go to velocity mode with 0 velocity for now...
-  // velocity will soon be updated in the while loop
+  // velocity will soon be updated in the control interrupt
   mode = 'v';
   r = 0;
-  // Start a loop - keep moving until bound is reached
-  SerialUSB.println("v_init: " + String(velocity_init) + ", v_finl: " + String(velocity_fin) + "\nx_init: " + String(x_init) + ", x_finl: " + String(x_final));
-  SerialUSB.println(deltaV);
-  SerialUSB.println(deltaX);
-  SerialUSB.println(v_init_sqare);
-  SerialUSB.println(v_intermediate);
-  SerialUSB.println(accel);
-  while(sign * yw < sign * reading_x){
-    // How Does THis Loop Work? Let's look at an example because I keep confusing
-    // myself with this. 
-    // Example 1: reading_x = -100, x_init = 1. We see that sign = -1
-    // so we want a negative velocity and we want to keep looping until
-    // yw <= reading_x. thus, keep looping while yw*(-1) < reading_x*(-1)
-    // Example 2: reading_x = 100, x_init = 1, sign = + 1, keep looping until
-    // yw >= reading_x, loop while yw < reading_x
+  // Send command to the control interrupt
+  controller_flag |= 1<<BUSY;
+  controller_flag |= LINEAR_COMMAND<<COMMAND_SHIFT;
+  // Start a loop - wait until we are no longer busy
 
-    // OK now to update the velocity...
-    if(abs(x_init-yw) < SMALL_DIST_LIMIT){
-      // we don't want negative time; this helps make sure small
-      // changes in the initial position don't cause problems
-      time = 0;
-    }
-    else{
-      // This should always be positive, but we are taking the abs
-      // just to be safe.
-      time = abs(v_intermediate * (-velocity_init + sign*sqrt(v_init_sqare - (2*deltaV*(x_init - yw)*v_intermediate)/(deltaX)))/(deltaV * deltaX));
-    }
-    velocity = velocity_init + accel * time;
-    r = bound_vel(velocity);
-    delay(10);
-    SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + ", " + String(velocity) + ", " + String(time) + "\n");
-  }
-
-  // Hold final position
-  // WARNING: this may cause sudden acceleration/decelleration!
-  // This in turn causes brief overshoot which quickly gets corrected
-  // TODO: fix this problem
-  mode = 'x';
-  r = reading_x;
+  // We are done here
   return;
 }
 
@@ -744,7 +728,7 @@ void process_g(int code, char instruction[], int len){
       // Convert the reading 
       reading_x = interpolate_pos(reading_x);
 
-      if(behavior & POS_ABSOLUTE){
+      if(controller_flag & 1<<POS_ABSOLUTE){
         // If doing absolute positioning, use home as reference point
         reading_x = xmin - reading_x;
       }
@@ -754,11 +738,9 @@ void process_g(int code, char instruction[], int len){
       }
       // Keep output position within boundaries
       mode = 'x';
+      controller_flag |= 1<<BUSY;
+      controller_flag |= MOVE_COMMAND<<COMMAND_SHIFT;
       r = bound_pos(reading_x);
-      //loop until target reached
-      while(controller_flag & 1<<BUSY){
-        SerialUSB.println(yw-reading_x);
-      }
       break;
     case LINEAR_MOV:
       // First, we handle the case "G1 Fxxx" and set the feedrate to xxx without
@@ -779,23 +761,24 @@ void process_g(int code, char instruction[], int len){
 
     case SET_ABS:
       // Set absolute positioning
-      behavior |= POS_ABSOLUTE;
+      controller_flag |= 1<<POS_ABSOLUTE;
       break;
 
     case SET_REL:  
       // Set relative positioning
-      behavior &= ~(POS_ABSOLUTE);
+      controller_flag &= ~(1<<POS_ABSOLUTE);
       break;
 
     case CHANGE_UNIT_IN:
       // Change units to inches
-      behavior &= ~(UNITS_MM);
+      controller_flag &= ~(1<<UNITS_MM);
       break;
 
     case CHANGE_UNIT_MM:
       // Change units to mm
-      behavior |= UNITS_MM;
+      controller_flag |= 1<<UNITS_MM;
       break;
+
     case SET_HOME:
       // Set the current location to home
       xmin = yw;
@@ -829,12 +812,6 @@ void process_g(int code, char instruction[], int len){
         data1 = millis();
         controller_flag |= 1<<BUSY;
         controller_flag |= DWELL_COMMAND<<COMMAND_SHIFT;
-        // We are now busy; wait until the controller says we are done
-        while(controller_flag & 1<<BUSY){
-          SerialUSB.println(~(((millis()-data1) > target)<<BUSY),BIN);
-          SerialUSB.println(controller_flag,BIN);
-        }
-        // tODO: get rid of this while^^
       }
       else{
         SerialUSB.println("Give a dwell time");
@@ -1127,6 +1104,9 @@ void setupTCInterrupts() {  // configure the controller interrupt
   for(int i = 0; i<FILTER_LEN;i++){
     u_past[i] = 0;
   }
+  // Start in mm, abs positioning mode
+  controller_flag = NO_FLAGS;
+  controller_flag |= (1<<UNITS_MM | 1<<POS_ABSOLUTE);
   // Enable GCLK for TC4 and TC5 (timer counter input clock)
   GCLK->CLKCTRL.reg = (uint16_t) (GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK0 | GCLK_CLKCTRL_ID(GCM_TC4_TC5));
   while (GCLK->STATUS.bit.SYNCBUSY);
@@ -1156,8 +1136,8 @@ void setupTCInterrupts() {  // configure the controller interrupt
   NVIC_EnableIRQ(TC5_IRQn);
 
   // Enable TC
-  TC5->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
-  WAIT_TC16_REGS_SYNC(TC5)
+  // TC5->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+  // WAIT_TC16_REGS_SYNC(TC5)
 }
 
 void enableTCInterrupts() {   //enables the controller interrupt ("closed loop mode")

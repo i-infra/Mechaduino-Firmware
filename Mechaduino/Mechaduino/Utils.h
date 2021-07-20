@@ -58,8 +58,6 @@
   // Rod thread - millimeters per rotation
   #define MM_PER_ROT          2
   #define IN_PER_ROT          0.0787402f
-  #define UNITS_MM            1
-  #define POS_ABSOLUTE        1<<1
   #define DEFAULT_SPEED       10  // Mechaduino speeds
   #define MIN_SPEED           1
   #define MAX_SPEED           300 // measured in RPM
