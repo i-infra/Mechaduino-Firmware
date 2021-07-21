@@ -35,9 +35,8 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
         // here, we have to be careful to ensure no overshoot
         controller_flag &= ~((dir_going*yw >= dir_going*target)<<BUSY);
         // if we haven't reached our target yet, get moving
+        // and if we don't have a chance of overshooting
         if (controller_flag & 1<<BUSY){
-          // overshoot prevention goes here
-
           // if accel = 0, go at const speed.
           if(data6 == 0){
             r = bound_vel(data3);
@@ -47,7 +46,6 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
           // otherwise, speed is f(position)
           else{
             time = abs(data1 * (data2 + sqrt(data3*data3 - data4*(data5-yw))));
-            time += 1/(2 * 60000000.0 * MOVE_CTRL_HZ); // convert us to minutes
             velocity = data3 + data6 * time;
             r = bound_vel(velocity);
           }
