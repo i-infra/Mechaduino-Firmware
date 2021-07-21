@@ -36,7 +36,7 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
         controller_flag &= ~((dir_going*yw >= dir_going*target)<<BUSY);
         // if we haven't reached our target yet, get moving
         // and if we don't have a chance of overshooting
-        if (controller_flag & 1<<BUSY){
+        if (controller_flag & 1<<BUSY && dir_going*(yw + (2 * r / (60*360*MOVE_CTRL_HZ))) < dir_going*target){
           // if accel = 0, go at const speed.
           if(data6 == 0){
             r = bound_vel(data3);
