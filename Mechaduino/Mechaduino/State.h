@@ -28,8 +28,9 @@ extern volatile long counter;
 extern float xmax;
 extern float xmin;
 
-// These global variables are for 
-extern volatile float feedrate;
+
+extern float feedrate;
+// These global variables are for sending commands to the controller interrupt
 extern volatile float target;
 extern volatile float data1;
 extern volatile float data2;
@@ -37,6 +38,7 @@ extern volatile float data3;
 extern volatile float data4;
 extern volatile float data5;
 extern volatile float data6;
+extern volatile float dir_going;
 
 extern volatile long wrap_count;
 extern volatile float y_1;

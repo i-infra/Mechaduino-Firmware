@@ -687,6 +687,7 @@ void linear_move_action(float reading_x, float reading_misc){
   data4 = 2*deltaV*v_intermediate/deltaX;
   data5 = x_init;
   data6 = accel;
+  dir_going = sign;
   SerialUSB.println(data1);
   SerialUSB.println(data2);
   SerialUSB.println(data3);
@@ -700,8 +701,6 @@ void linear_move_action(float reading_x, float reading_misc){
   // Send command to the control interrupt
   controller_flag |= 1<<BUSY;
   controller_flag |= LINEAR_COMMAND<<COMMAND_SHIFT;
-  // Start a loop - wait until we are no longer busy
-
   // We are done here
   return;
 }
