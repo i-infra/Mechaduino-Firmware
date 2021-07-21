@@ -12,7 +12,7 @@ extern volatile unsigned int   controller_flag;
 #define FILTER_PERIOD_US 20000 // Time period between adding to the filter
 
 // For movement control
-#define MOVE_CTRL_US     6000   // Time period between movement control updates
+#define MOVE_CTRL_HZ     200   // Frequency of movement control updates
 
 // Flags for the controller
 #define MAX_EFFORT_ERR 0    // Bit number for indicating effort too high
@@ -35,6 +35,7 @@ extern volatile unsigned int   controller_flag;
 
 
 void TC5_Handler();
+void TC4_Handler();
 
 
 #endif

@@ -1134,9 +1134,31 @@ void setupTCInterrupts() {  // configure the controller interrupt
   // Enable InterruptVector
   NVIC_EnableIRQ(TC5_IRQn);
 
+
+  // // Now we also need TC4 for handling the GCode commands
+  // while (GCLK->STATUS.bit.SYNCBUSY);
+  // TC4->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;   // Disable TCx
+  // WAIT_TC16_REGS_SYNC(TC4)                      // wait for sync
+  // TC4->COUNT16.CTRLA.reg |= TC_CTRLA_MODE_COUNT16;   // Set Timer counter Mode to 16 bits
+  // WAIT_TC16_REGS_SYNC(TC4)
+  // TC4->COUNT16.CTRLA.reg |= TC_CTRLA_WAVEGEN_MFRQ; // Set TC as normal Normal Frq
+  // WAIT_TC16_REGS_SYNC(TC4)
+  // TC4->COUNT16.CTRLA.reg |= TC_CTRLA_PRESCALER_DIV1024;   // Set perscaler; 46.875kHz
+  // WAIT_TC16_REGS_SYNC(TC4)
+  // TC4->COUNT16.CC[0].reg = (int)(round(48000000 / (1024*MOVE_CTRL_HZ))); // clock speed / freq = tick check
+  // WAIT_TC16_REGS_SYNC(TC4)
+  // TC4->COUNT16.INTENSET.reg = 0;              // disable all interrupts
+  // TC4->COUNT16.INTENSET.bit.OVF = 1;          // enable overfollow
+  // TC4->COUNT16.INTENSET.bit.MC0 = 1;         // enable compare match to CC0
+  // NVIC_SetPriority(TC4_IRQn, 2);              //Set interrupt priority
+  // NVIC_EnableIRQ(TC4_IRQn);                  // Enable InterruptVector
+
+
   // Enable TC
-  // TC5->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
-  // WAIT_TC16_REGS_SYNC(TC5)
+  TC5->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+  WAIT_TC16_REGS_SYNC(TC5)
+  // TC4->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+  // WAIT_TC16_REGS_SYNC(TC4)
 }
 
 void enableTCInterrupts() {   //enables the controller interrupt ("closed loop mode")
