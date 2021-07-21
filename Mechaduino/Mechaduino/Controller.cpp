@@ -16,7 +16,6 @@ volatile float u_past[FILTER_LEN];
 volatile unsigned long past_filter_time = 0;
 
 void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
-  unsigned long current_time = micros(); 
   // This is the bit of code that manages movement so the
   // main loop can do other stuff.
   // We don't need to set the speed or check the time during
@@ -24,7 +23,6 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
   float time, velocity;
   // Consider the cases: 
   unsigned int command = (controller_flag & COMMAND_MASK)>>COMMAND_SHIFT;
-  if (TC5->COUNT16.INTFLAG.bit.OVF == 1) {        // A counter overflow caused the interrupt
     switch(command){
       case STOP_COMMAND:
         break;
@@ -67,38 +65,14 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
         break;
 
     }
-  }
-
-    // Stop moving if effort is exceeded
-  if(U > EFFORT_MAX && mode == 'v'){
-    r = 0;
-    // Set the MAX_EFFORT_ERR flag
-    controller_flag |= 1<<MAX_EFFORT_ERR;
-  }
-
-  // Shift in new value and take the average to get the filtered effort
-  // Do the following with period FILTER_PERIOD_US 
-  if((current_time - FILTER_PERIOD_US) > past_filter_time){
-    u_roll_1 = u_roll;
-    u_roll = 0;
-    past_filter_time = current_time;
-    
-    for(int i = FILTER_LEN-1; i >= 1; i--){
-      // Shift in a new value and do avg
-      u_past[i] = u_past[i-1];
-      u_roll += u_past[i];
-    }
-    u_past[0] = u;
-    u_roll += u;
-    u_roll = u_roll / FILTER_LEN;
-  }
+  
 
   TC4->COUNT16.INTFLAG.bit.OVF = 1;    // writing a one clears the flag ovf flag
 }
 
 void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
 
-
+  unsigned long current_time = micros(); 
   if (TC5->COUNT16.INTFLAG.bit.OVF == 1) {        // A counter overflow caused the interrupt
     y = lookup[readEncoder()];                    //read encoder and lookup corrected angle in calibration lookup table
 
@@ -172,7 +146,29 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
   u_1 = u;
   yw_1 = yw;
   
+    // Stop moving if effort is exceeded
+  if(U > EFFORT_MAX && mode == 'v'){
+    r = 0;
+    // Set the MAX_EFFORT_ERR flag
+    controller_flag |= 1<<MAX_EFFORT_ERR;
+  }
 
+  // Shift in new value and take the average to get the filtered effort
+  // Do the following with period FILTER_PERIOD_US 
+  if((current_time - FILTER_PERIOD_US) > past_filter_time){
+    u_roll_1 = u_roll;
+    u_roll = 0;
+    past_filter_time = current_time;
+    
+    for(int i = FILTER_LEN-1; i >= 1; i--){
+      // Shift in a new value and do avg
+      u_past[i] = u_past[i-1];
+      u_roll += u_past[i];
+    }
+    u_past[0] = u;
+    u_roll += u;
+    u_roll = u_roll / FILTER_LEN;
+  }
 
   
   TC5->COUNT16.INTFLAG.bit.OVF = 1;    // writing a one clears the flag ovf flag

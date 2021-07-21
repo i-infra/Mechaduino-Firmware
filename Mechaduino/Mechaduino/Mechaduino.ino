@@ -29,15 +29,16 @@ long currTime;
 long prevTime;
 
 void setup()        // This code runs once at startup
-{                         
-   
+{      
+  SerialUSB.begin(115200);
   digitalWrite(ledPin,HIGH);        // turn LED on 
   setupPins();                      // configure pins
   setupTCInterrupts();              // configure controller interrupt
-  SerialUSB.begin(115200);          
   delay(3000);                      // This delay seems to make it easier to establish a connection when the Mechaduino is configured to start in closed loop mode.  
   serialMenu();                     // Prints menu to serial monitor
+  SerialUSB.println('5');
   setupSPI();                       // Sets up SPI for communicating with encoder
+  SerialUSB.println('6');
   digitalWrite(ledPin,LOW);         // turn LED off 
   
   // spot check some of the lookup table to decide if it has been filled in
