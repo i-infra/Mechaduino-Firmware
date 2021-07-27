@@ -598,7 +598,7 @@ float bound_pos(float target){
   return target;
 }
 
-float bound_vel(float speed){
+float bound_vel(float speed, float sign){
   // Check if speed bounds are exceeded
   // Takes a speed in RPM (not mm/min or in/min)
   // and outputs the bounded feedrate
@@ -611,7 +611,7 @@ float bound_vel(float speed){
   }
 
   // Return the adjusted velocity (with correct sign)
-  return abs_speed * (speed/abs(speed));
+  return abs_speed * sign;
 }
 
 void linear_move_action(float reading_x, float reading_misc){
@@ -676,7 +676,13 @@ void linear_move_action(float reading_x, float reading_misc){
   deltaX = x_final - x_init;
   v_init_sqare = velocity_init * velocity_init;
   v_intermediate = (velocity_init) + (deltaV/2.0);
-  accel = (deltaV * deltaX)/v_intermediate;
+  if(deltaV == 0){
+    accel = 0;
+  }
+  else{
+    accel = (deltaV * deltaX)/v_intermediate;
+  }
+  
   // Load up the global variables with the pre-calculated values
   target = reading_x;
   // t = (D1)*(D2 + SQRT(D3**2 -D4(D5-yw)))
@@ -708,8 +714,6 @@ void linear_move_action(float reading_x, float reading_misc){
 void process_g(int code, char instruction[], int len){
   float reading_x, reading_misc;          // For managing the readings
 
-  // Clear the command bits
-  controller_flag &= ~COMMAND_MASK;
 
   switch(code){
     case EMPTY:
@@ -735,10 +739,15 @@ void process_g(int code, char instruction[], int len){
         // Else, add on to current position
         reading_x = yw - reading_x;
       }
-      // Keep output position within boundaries
+      
+      // wait until we are no longer busy before starting the new command
+      while(controller_flag & 1<<BUSY){
+        delayMicroseconds(FILTER_PERIOD_US);
+      }
       mode = 'x';
       controller_flag |= 1<<BUSY;
       controller_flag |= MOVE_COMMAND<<COMMAND_SHIFT;
+      // Keep output position within boundaries
       r = bound_pos(reading_x);
       break;
     case LINEAR_MOV:

@@ -39,7 +39,7 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
         if (controller_flag & 1<<BUSY){
           // if accel = 0, go at const speed.
           if(data6 == 0){
-            r = bound_vel(data3);
+            r = bound_vel(data3, dir_going);
             time = 0;
             velocity = r;
           }
@@ -62,7 +62,15 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
         controller_flag &= ~(((millis()-data1) > target)<<BUSY);
         break;
 
+      default:
+        break;
     }
+
+  // If we are not busy...
+  if(~controller_flag & 1<<BUSY){
+    // Clear the command bits. We have nothing to do anymore.
+    controller_flag &= ~COMMAND_MASK;
+  }
   
 
   TC4->COUNT16.INTFLAG.bit.OVF = 1;    // writing a one clears the flag ovf flag
@@ -149,6 +157,8 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
     r = 0;
     // Set the MAX_EFFORT_ERR flag
     controller_flag |= 1<<MAX_EFFORT_ERR;
+    // Stop trying to execute a command
+    controller_flag &= ~COMMAND_MASK;
   }
 
   // Shift in new value and take the average to get the filtered effort
