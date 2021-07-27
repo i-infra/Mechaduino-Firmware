@@ -47,7 +47,7 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
           else{
             time = abs(data1 * (data2 + sqrt(data3*data3 - data4*(data5-yw))));
             velocity = data3 + data6 * time;
-            r = bound_vel(velocity);
+            r = bound_vel(velocity, dir_going);
           }
         }
         // if we did reach the target, stop moving
