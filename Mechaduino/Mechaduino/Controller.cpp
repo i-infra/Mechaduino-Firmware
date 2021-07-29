@@ -20,7 +20,7 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
   // main loop can do other stuff.
   // We don't need to set the speed or check the time during
   // every cycle; set the period with MOVE_CTRL_HZ
-  float time, velocity;
+  float time, velocity, xpos;
   // Consider the cases: 
   unsigned int command = (controller_flag & COMMAND_MASK)>>COMMAND_SHIFT;
     switch(command){
@@ -45,7 +45,12 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
           }
           // otherwise, speed is f(position)
           else{
-            time = abs(data1 * (data2 + sqrt(data3*data3 - data4*(data5-yw))));
+            // if yw is behind xint bc of small movements, correct xpos
+            xpos = yw;
+            if(dir_going * data5 > dir_going * xpos){
+              xpos = data5;
+            }
+            time = abs(data1 * (data2 + sqrt(data3*data3 - data4*(data5-xpos)/data7))/data7);
             velocity = data3 + data6 * time;
             r = bound_vel(velocity, dir_going);
           }

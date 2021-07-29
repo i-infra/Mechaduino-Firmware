@@ -35,6 +35,7 @@ volatile float data3 = 0;
 volatile float data4 = 0;
 volatile float data5 = 0;
 volatile float data6 = 0;
+volatile float data7 = 0;
 volatile float dir_going = 0;
 
 volatile long wrap_count = 0;  //keeps track of how many revolutions the motor has gone though (so you can command angles outside of 0-360)

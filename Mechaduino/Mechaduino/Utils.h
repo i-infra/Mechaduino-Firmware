@@ -60,7 +60,7 @@
   #define IN_PER_ROT          0.0787402f
   #define DEFAULT_SPEED       10  // Mechaduino speeds
   #define MIN_SPEED           3   // Can't go slower than 3 RPM
-  #define MAX_SPEED           300 // measured in RPM
+  #define MAX_SPEED           310 // measured in RPM
 
 	void setupPins();                 // initializes pins
 	

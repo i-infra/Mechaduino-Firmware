@@ -68,5 +68,11 @@ void loop()                 // main loop
    // SerialUSB.print(String(currTime) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + "\n\r");
        SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll)  + ", " + String(r) + "\n");
 
+  if(abs(r)<MIN_SPEED){
+              SerialUSB.println(abs(data1 * (data2 + sqrt(data3*data3 - data4*(data5-yw)/data7))/data7));
+              SerialUSB.println(data3);
+              SerialUSB.println(data6);
+            }
+
   }
 }

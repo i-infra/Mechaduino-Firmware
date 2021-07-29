@@ -38,6 +38,7 @@ extern volatile float data3;
 extern volatile float data4;
 extern volatile float data5;
 extern volatile float data6;
+extern volatile float data7;
 extern volatile float dir_going;
 
 extern volatile long wrap_count;

@@ -602,6 +602,11 @@ float bound_vel(float speed, float sign){
   // Check if speed bounds are exceeded
   // Takes a speed in RPM (not mm/min or in/min)
   // and outputs the bounded feedrate
+  // First, check for NAN
+  if(isnan(speed)){
+    return MIN_SPEED * sign;
+  }
+
   float abs_speed = abs(speed);
   if(abs_speed > MAX_SPEED){
     abs_speed = MAX_SPEED;
@@ -631,7 +636,7 @@ void linear_move_action(float reading_x, float reading_misc){
   float velocity, x_init, x_final, sign;
   float velocity_init, velocity_fin;
 
-  float deltaV, deltaX, accel, v_init_sqare, time, v_intermediate;
+  float deltaV, deltaX, accel, time, v_intermediate;
 
   // Very first thing we do is capture yw so it doesn't change
   x_init = yw;
@@ -672,9 +677,13 @@ void linear_move_action(float reading_x, float reading_misc){
   // Bound the position to stay in bounds when actually moving
   reading_x = bound_pos(reading_x);
   // We can pre-calculate some useful values so we aren't wasting time in the loop
+  SerialUSB.println(velocity_init);
+  SerialUSB.println(velocity_fin);
+  SerialUSB.println(x_init);
+  SerialUSB.println(x_final);
+  SerialUSB.println(sign);
   deltaV = velocity_fin - velocity_init;
   deltaX = x_final - x_init;
-  v_init_sqare = velocity_init * velocity_init;
   v_intermediate = (velocity_init) + (deltaV/2.0);
   if(deltaV == 0){
     accel = 0;
@@ -684,15 +693,16 @@ void linear_move_action(float reading_x, float reading_misc){
   }
   
   // Load up the global variables with the pre-calculated values
+  // t = (D1/D7)*(D2 + SQRT(D3**2 (-D4/D7)(D5-yw)))
+  // We see we need 9 precomputed global variables
   target = reading_x;
-  // t = (D1)*(D2 + SQRT(D3**2 -D4(D5-yw)))
-  // We see we need 5 precomputed global variables
-  data1 = (v_intermediate/(deltaV * deltaX)) * sign;
+  data1 = (v_intermediate/(deltaV)) * sign;
   data2 = -velocity_init*sign;
   data3 = velocity_init;
-  data4 = 2*deltaV*v_intermediate/deltaX;
+  data4 = 2*deltaV*v_intermediate;
   data5 = x_init;
   data6 = accel;
+  data7 = deltaX;
   dir_going = sign;
   SerialUSB.println(data1);
   SerialUSB.println(data2);
