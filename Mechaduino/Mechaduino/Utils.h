@@ -21,6 +21,8 @@
   #define SET_HOME       92
   #define SET_ABS        90
   #define SET_REL        91
+  // M code defines
+  #define DEBUG          111
   
   // How many times we should wait to receive a command
   #define DELAY_COUNT    200
@@ -56,11 +58,11 @@
   #define CALIBRATION_SUCCESS 0
 
   // Rod thread - millimeters per rotation
-  #define MM_PER_ROT          2
+  #define MM_PER_ROT          2.0
   #define IN_PER_ROT          0.0787402f
-  #define DEFAULT_SPEED       10  // Mechaduino speeds
-  #define MIN_SPEED           3   // Can't go slower than 3 RPM
-  #define MAX_SPEED           310 // measured in RPM
+  #define DEFAULT_SPEED       10.0  // 10 RPM
+  #define MIN_SPEED           0.0005// Measured in RPM
+  #define MAX_SPEED           310.0 // measured in RPM
 
 	void setupPins();                 // initializes pins
 	

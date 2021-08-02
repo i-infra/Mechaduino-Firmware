@@ -16,14 +16,17 @@ extern volatile unsigned int   controller_flag;
 
 // Flags for the controller
 #define MAX_EFFORT_ERR 0    // Bit number for indicating effort too high
-#define BUSY           1    // Bit number for indicating movement in progress
-#define MISC_NOTIF     2    // Bit number for general purpose flag
+#define MAX_SLOPE_ERR  1    // Bit indicates a sharp spike in effort has been detected
+#define BUSY           2    // Bit number for indicating movement in progress
+#define MISC_NOTIF     3    // Bit number for general purpose flag
 #define NO_FLAGS       0
 // Flags for indicating behavior (might as well do them here and save 4 bytes)
-#define UNITS_MM            3
-#define POS_ABSOLUTE        4
+#define UNITS_MM            4
+#define POS_ABSOLUTE        5
+// Flag for indicating whether we are debugging
+#define DEBUG_MODE          6
 // Flags for the loop to set
-#define COMMAND_SHIFT   5
+#define COMMAND_SHIFT   7
 #define COMMAND_MASK    (0b111 << COMMAND_SHIFT)
 #define STOP_COMMAND    0b111 // Halt
 #define MOVE_COMMAND    0b001 // Rapid move

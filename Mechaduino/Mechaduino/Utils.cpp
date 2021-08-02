@@ -499,7 +499,10 @@ void process_string(char instruction[], int len){
    //   G28:     Home/Level - Find max and min displacement of motor and home it
    //   G90/91:  Absolute/Relative position
    //   G92:     Set new home
- 
+   //   M111:    Debug  
+  
+  // First, if we are debugging, print the command we received
+  SerialUSB.println(instruction);
 
   unsigned int code;
   code = search_code('G', instruction, len);
@@ -676,21 +679,11 @@ void linear_move_action(float reading_x, float reading_misc){
   x_final = reading_x;
   // Bound the position to stay in bounds when actually moving
   reading_x = bound_pos(reading_x);
-  // We can pre-calculate some useful values so we aren't wasting time in the loop
-  SerialUSB.println(velocity_init);
-  SerialUSB.println(velocity_fin);
-  SerialUSB.println(x_init);
-  SerialUSB.println(x_final);
-  SerialUSB.println(sign);
+  // We can pre-calculate some useful values
   deltaV = velocity_fin - velocity_init;
   deltaX = x_final - x_init;
   v_intermediate = (velocity_init) + (deltaV/2.0);
-  if(deltaV == 0){
-    accel = 0;
-  }
-  else{
-    accel = (deltaV * deltaX)/v_intermediate;
-  }
+  accel = (deltaV * deltaX)/v_intermediate;
   
   // Load up the global variables with the pre-calculated values
   // t = (D1/D7)*(D2 + SQRT(D3**2 (-D4/D7)(D5-yw)))
@@ -704,12 +697,6 @@ void linear_move_action(float reading_x, float reading_misc){
   data6 = accel;
   data7 = deltaX;
   dir_going = sign;
-  SerialUSB.println(data1);
-  SerialUSB.println(data2);
-  SerialUSB.println(data3);
-  SerialUSB.println(data4);
-  SerialUSB.println(data5);
-  SerialUSB.println(data6);
   // Go to velocity mode with 0 velocity for now...
   // velocity will soon be updated in the control interrupt
   mode = 'v';
@@ -727,7 +714,7 @@ void process_g(int code, char instruction[], int len){
 
   switch(code){
     case EMPTY:
-      SerialUSB.println("Please give a command!");
+      SerialUSB.println("Please give a G command!");
       break;
 
     case RAPID_MOV:
@@ -896,7 +883,32 @@ void calib_home(){
 }
 
 void process_m(int code, char instruction[], int len){
-  SerialUSB.println("That's a " + String(code) + " mcode");
+  float reading_s;          // For managing the readings
+
+
+  switch(code){
+    case EMPTY:
+      SerialUSB.println("Please give a M command!");
+      break;
+
+    case DEBUG:
+      reading_s = search_code('S', instruction, len);
+      if(reading_s == NOT_FOUND){
+        return;
+      }
+      else if(reading_s == 0){
+        // If S0, turn off debugging mode
+        controller_flag &= ~(1<<DEBUG_MODE);
+      }
+      else{
+        // Otherwise, we are debugging
+        controller_flag |= (1<<DEBUG_MODE);
+      }
+      break;
+    default:
+      SerialUSB.println("That's a " + String(code) + " mcode");
+      break;
+    }
   return;
 }
   

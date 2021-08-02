@@ -21,6 +21,7 @@
 #include "Parameters.h"
 #include "State.h"
 #include "analogFastWrite.h"
+#include "Controller.h"
 
 /////////////////SETUP////////////////
 // Initialize variables for periodically reporting torque and position
@@ -60,12 +61,10 @@ void loop()                 // main loop
 
   serialCheck();              //must have this execute in loop for serial commands to function
 
-  // Every timeDelay milliseconds, report on the status
+  // Every timeDelay milliseconds, report on the status, but only if we are in debugging mode
+  if(controller_flag & (1<<DEBUG_MODE)){
   currTime = millis();
   if(prevTime + timeDelay < currTime){
-    prevTime = currTime;
-    // Send out the current time, the position, and the "effort"
-   // SerialUSB.print(String(currTime) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll) + "\n\r");
        SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll)  + ", " + String(r) + "\n");
 
   if(abs(r)<MIN_SPEED){
@@ -74,5 +73,6 @@ void loop()                 // main loop
               SerialUSB.println(data6);
             }
 
+  }
   }
 }

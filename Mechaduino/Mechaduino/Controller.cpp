@@ -25,9 +25,12 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
   unsigned int command = (controller_flag & COMMAND_MASK)>>COMMAND_SHIFT;
     switch(command){
       case STOP_COMMAND:
+        mode = 'x';
+        r = yw;
+        controller_flag &= ~(1<<BUSY);
         break;
       case MOVE_COMMAND:
-        // We are busy until we are at the  target destination.
+        // We are busy until we are at the target destination.
         controller_flag &= ~((dir_going*yw >= dir_going*r)<<BUSY);
         break;
       case LINEAR_COMMAND:
@@ -40,8 +43,6 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
           // if accel = 0, go at const speed.
           if(data6 == 0){
             r = bound_vel(data3, dir_going);
-            time = 0;
-            velocity = r;
           }
           // otherwise, speed is f(position)
           else{
@@ -157,13 +158,15 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
   u_1 = u;
   yw_1 = yw;
   
-    // Stop moving if effort is exceeded
+  // Stop moving if effort is exceeded
   if(U > EFFORT_MAX && mode == 'v'){
     r = 0;
     // Set the MAX_EFFORT_ERR flag
     controller_flag |= 1<<MAX_EFFORT_ERR;
     // Stop trying to execute a command
     controller_flag &= ~COMMAND_MASK;
+    // Make sure we aren't stuck in the busy state
+    controller_flag &= ~(1<<BUSY);
   }
 
   // Shift in new value and take the average to get the filtered effort
@@ -183,6 +186,8 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
     u_roll = u_roll / FILTER_LEN;
   }
 
+  // Check if the difference in u_roll exceeds a threshold
+  controller_flag |= (abs(u_roll-u_roll_1) > EFFORT_SLOPE_THRESH)<<MAX_SLOPE_ERR;
   
   TC5->COUNT16.INTFLAG.bit.OVF = 1;    // writing a one clears the flag ovf flag
 }
