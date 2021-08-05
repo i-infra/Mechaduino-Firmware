@@ -24,6 +24,8 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
   // Consider the cases: 
   unsigned int command = (controller_flag & COMMAND_MASK)>>COMMAND_SHIFT;
     switch(command){
+      case NULL_COMMAND:
+        break;
       case STOP_COMMAND:
         mode = 'x';
         r = yw;
@@ -51,7 +53,7 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
             if(dir_going * data5 > dir_going * xpos){
               xpos = data5;
             }
-            time = abs(data1 * (data2 + sqrt(data3*data3 - data4*(data5-xpos)/data7))/data7);
+            time = abs(data1 * (data2 + sqrt(data7 - data4*(data5-xpos))));
             velocity = data3 + data6 * time;
             r = bound_vel(velocity, dir_going);
           }
@@ -159,7 +161,7 @@ void TC5_Handler() {// gets called with FPID frequency, defined in Parameters
   yw_1 = yw;
   
   // Stop moving if effort is exceeded
-  if(U > EFFORT_MAX && mode == 'v'){
+  if(U >= uMAX && abs(u_1) >= uMAX && mode == 'v'){
     r = 0;
     // Set the MAX_EFFORT_ERR flag
     controller_flag |= 1<<MAX_EFFORT_ERR;

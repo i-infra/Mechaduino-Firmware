@@ -28,6 +28,7 @@ extern volatile unsigned int   controller_flag;
 // Flags for the loop to set
 #define COMMAND_SHIFT   7
 #define COMMAND_MASK    (0b111 << COMMAND_SHIFT)
+#define NULL_COMMAND    0b000 // Nothing
 #define STOP_COMMAND    0b111 // Halt
 #define MOVE_COMMAND    0b001 // Rapid move
 #define LINEAR_COMMAND  0b010 // Linear move

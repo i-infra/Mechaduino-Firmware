@@ -11,6 +11,9 @@
 #include "State.h"
 #include "analogFastWrite.h"
 
+FlashStorage(xmin_store, float);
+FlashStorage(xmax_store, float);
+
 void setupPins() {
 
   pinMode(VREF_2, OUTPUT);
@@ -178,6 +181,7 @@ int calibrate() {   /// this is the calibration routine
   int ticks = 0;
   float lookupAngle = 0.0;
   SerialUSB.println("Beginning calibration routine...");
+  disableTCInterrupts();
   // Take a couple steps to make sure it's working right
   oneStep();
   delay(SETTLE_TIME);
@@ -650,10 +654,12 @@ void linear_move_action(float reading_x, float reading_misc){
   if(controller_flag & 1<<POS_ABSOLUTE){
     // If doing absolute positioning, use home as reference point
     reading_x = xmin - reading_x;
+    SerialUSB.println("abs");
   }
   else{
     // Else, add on to current position
     reading_x = x_init - reading_x;
+    SerialUSB.println("rel");
   }
 
   // Next, figure out which direction we want to go
@@ -670,7 +676,7 @@ void linear_move_action(float reading_x, float reading_misc){
   else{
     // If we do have a second feedrate, update the feedrate variable and
     // the final velocity with the value in the command.
-    feedrate = interpolate_vel(reading_misc);
+    feedrate = reading_misc;
     velocity_fin = sign * feedrate;
   }
 
@@ -689,22 +695,29 @@ void linear_move_action(float reading_x, float reading_misc){
   // t = (D1/D7)*(D2 + SQRT(D3**2 (-D4/D7)(D5-yw)))
   // We see we need 9 precomputed global variables
   target = reading_x;
-  data1 = (v_intermediate/(deltaV)) * sign;
+  data1 = (v_intermediate/(deltaV)) * sign /deltaX;
   data2 = -velocity_init*sign;
   data3 = velocity_init;
-  data4 = 2*deltaV*v_intermediate;
+  data4 = 2*deltaV*v_intermediate/deltaX;
   data5 = x_init;
   data6 = accel;
-  data7 = deltaX;
+  data7 = velocity_init*velocity_init;
   dir_going = sign;
   // Go to velocity mode with 0 velocity for now...
   // velocity will soon be updated in the control interrupt
   mode = 'v';
   r = 0;
   // Send command to the control interrupt
+  controller_flag &= ~(1<<MAX_EFFORT_ERR);
+  controller_flag &= ~(1<<MAX_SLOPE_ERR);
   controller_flag |= 1<<BUSY;
   controller_flag |= LINEAR_COMMAND<<COMMAND_SHIFT;
   // We are done here
+  // SerialUSB.println(controller_flag, BIN);
+  // SerialUSB.println(yw);
+  // SerialUSB.println(target);
+  // delay(10);
+  // SerialUSB.println(controller_flag, BIN);
   return;
 }
 
@@ -755,7 +768,7 @@ void process_g(int code, char instruction[], int len){
       if(reading_x == NOT_FOUND){
         // If no x position is given, update the feedrate and return.
         if(reading_misc != NOT_FOUND){
-          feedrate = interpolate_vel(reading_misc);
+          feedrate = reading_misc;
         }
         return;
       }
@@ -1189,7 +1202,7 @@ void setupTCInterrupts() {  // configure the controller interrupt
   // WAIT_TC16_REGS_SYNC(TC5)
   // TC4->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
   // WAIT_TC16_REGS_SYNC(TC4)
-  // SerialUSB.println("enabled");
+  SerialUSB.println("enabled");
 
   return;
 }

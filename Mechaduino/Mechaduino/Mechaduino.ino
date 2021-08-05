@@ -49,10 +49,9 @@ void setup()        // This code runs once at startup
   currTime = millis();              // Initialize variables
   prevTime = currTime;
 
-  // Print out formatting for periodic outputs in CSV format
-  //SerialUSB.print("\"time\", \"position\", \"effort\" \n\r");
+  enableTCInterrupts();
 
-
+  calib_home();
 }
   
 ////////////////LOOP/////////////////
@@ -61,18 +60,10 @@ void loop()                 // main loop
 
   serialCheck();              //must have this execute in loop for serial commands to function
 
-  // Every timeDelay milliseconds, report on the status, but only if we are in debugging mode
-  if(controller_flag & (1<<DEBUG_MODE)){
+  // Every timeDelay milliseconds, report on the status, but only if we are debugging
   currTime = millis();
-  if(prevTime + timeDelay < currTime){
-       SerialUSB.print(String(millis()) + ", " + String(yw) + ", " + String(u) + ", " + String(u_roll)  + ", " + String(r) + "\n");
-
-  if(abs(r)<MIN_SPEED){
-              SerialUSB.println(abs(data1 * (data2 + sqrt(data3*data3 - data4*(data5-yw)/data7))/data7));
-              SerialUSB.println(data3);
-              SerialUSB.println(data6);
-            }
-
-  }
+  if(prevTime + timeDelay < currTime && controller_flag & (1<<DEBUG_MODE)){
+       prevTime = currTime;
+       SerialUSB.print(String(yw) + ", " + String(u) + ", " + String(u_roll)  + ", " + String(r*(mode=='v')) + ", " + String(controller_flag,BIN) +"\n");
   }
 }
