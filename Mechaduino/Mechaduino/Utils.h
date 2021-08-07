@@ -23,6 +23,7 @@
   #define SET_REL        91
   // M code defines
   #define DEBUG          111
+  #define ESTOP          112
   
   // How many times we should wait to receive a command
   #define DELAY_COUNT    200

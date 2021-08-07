@@ -11,9 +11,6 @@
 #include "State.h"
 #include "analogFastWrite.h"
 
-FlashStorage(xmin_store, float);
-FlashStorage(xmax_store, float);
-
 void setupPins() {
 
   pinMode(VREF_2, OUTPUT);
@@ -42,14 +39,14 @@ void setupPins() {
 }
 
 void setupSPI() {
-
+  //AS5047D SPI uses mode=1 (CPOL=0, CPHA=1)
   SPISettings settingsA(10000000, MSBFIRST, SPI_MODE1);             ///400000, MSBFIRST, SPI_MODE1);
 
-  SPI.begin();    //AS5047D SPI uses mode=1 (CPOL=0, CPHA=1)
-  SerialUSB.println("Beginning SPI communication with AS5047 encoder...");
-  delay(1000);
+  SPI.begin();    
+  delay(10);
+  // We have only 1 SPI device so we will keep the 
+  // transaction ongoing for easy and fast reading.
   SPI.beginTransaction(settingsA);
-
 }
 
 void configureStepDir() {
@@ -851,27 +848,22 @@ void calib_home(){
   // Get initial angle calibration (will return to this later)  
   // Move as far "in" as possible before hitting a high-effort region
   // Make this the new 0
-  SerialUSB.println("Trying to calibrate");
   mode = 'v';            // Velocity mode
   // Change directions a bit to get the motor moving
   r = -HOMING_SPEED;
   enableTCInterrupts();  // Start moving!
   delay(SETTLE_TIME);
   r = HOMING_SPEED;      // Move to 0 at HOMING_SPEED
-  SerialUSB.println("Moving!");
 
   while(abs(u_roll) < UNLOADED_EFFORT_LIM){
     delayMicroseconds(FILTER_PERIOD_US); // Idle while waiting for limit to be hit
   }
-  SerialUSB.println("Near home");
 
   r = -1*HOMING_SPEED/4;          // Move at quarter HOMING_SPEED
   while(abs(u_roll) > UNLOADED_EFFORT_NOM || abs(u_roll-u_roll_1) > EFFORT_SLOPE_THRESH){
     delayMicroseconds(FILTER_PERIOD_US); // Idle until we reach nominal effort
   }
   r = 0;                          // Stop moving
-  SerialUSB.println("At new home");
-  SerialUSB.println(yw);
   xmin = yw;
   delay(SETTLE_TIME);             // Wait for the motors to settle down
           
@@ -881,7 +873,6 @@ void calib_home(){
   while(abs(u_roll) < UNLOADED_EFFORT_LIM){
     delayMicroseconds(FILTER_PERIOD_US); // Idle while waiting for limit to be hit
   }
-  SerialUSB.println("Near extreme");
 
   r = 1*HOMING_SPEED/4;          // Move at quarter HOMING_SPEED
   while(abs(u_roll) > UNLOADED_EFFORT_NOM || abs(u_roll-u_roll_1) > EFFORT_SLOPE_THRESH){
@@ -889,15 +880,12 @@ void calib_home(){
   }
   r = 0;                          // Stop moving
   delay(SETTLE_TIME);             // Wait for the motors to settle down
-  SerialUSB.println("At new extreme");
-  SerialUSB.println(yw);
   xmax = yw;
   return;
 }
 
 void process_m(int code, char instruction[], int len){
   float reading_s;          // For managing the readings
-
 
   switch(code){
     case EMPTY:
@@ -917,6 +905,16 @@ void process_m(int code, char instruction[], int len){
         // Otherwise, we are debugging
         controller_flag |= (1<<DEBUG_MODE);
       }
+      break;
+
+    case ESTOP:
+      // Completely stop (only a reset can bring it back up)
+      // Clear the command instruction, stop the motors, and stop the control intterupt
+      controller_flag &= ~COMMAND_MASK;
+      mode = 'v';
+      r = 0;
+      disableTCInterrupts();
+      controller_flag &= ~(1<<DEBUG_MODE);
       break;
     default:
       SerialUSB.println("That's a " + String(code) + " mcode");
