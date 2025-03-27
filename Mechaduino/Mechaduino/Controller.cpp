@@ -9,7 +9,7 @@
 #include "Controller.h"
 
 // Initialize controller flag and rolling average
-volatile unsigned int controller_flag = NO_FLAGS;
+volatile unsigned int controller_flag = 0;//1<<DEBUG_MODE;
 volatile float u_roll = 0;
 volatile float u_roll_1 = 0;
 volatile float u_past[FILTER_LEN];
@@ -69,7 +69,6 @@ void TC4_Handler() { // called with MOVE_CTRL_HZ frequency
         // Thus, the busy bit is only cleared target time has elapsed.
         controller_flag &= ~(((millis()-data1) > target)<<BUSY);
         break;
-
       default:
         break;
     }

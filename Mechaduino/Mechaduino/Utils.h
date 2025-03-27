@@ -58,7 +58,7 @@
   #define CALIBRATION_SUCCESS 0
 
   // Rod thread - millimeters per rotation
-  #define MM_PER_ROT          2.0
+  #define MM_PER_ROT          1.0
   #define IN_PER_ROT          0.0787402f
   #define DEFAULT_SPEED       10.0  // 10 RPM
   #define MIN_SPEED           0.0005// Measured in RPM

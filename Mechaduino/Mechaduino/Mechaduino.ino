@@ -30,7 +30,7 @@ long currTime;
 long prevTime;
 
 void setup()        // This code runs once at startup
-{      
+{
   SerialUSB.begin(115200);
   digitalWrite(ledPin,HIGH);        // turn LED on 
   setupPins();                      // configure pins
@@ -51,7 +51,7 @@ void setup()        // This code runs once at startup
 
   enableTCInterrupts();
 
-  calib_home();
+  //alib_home();
 }
   
 ////////////////LOOP/////////////////

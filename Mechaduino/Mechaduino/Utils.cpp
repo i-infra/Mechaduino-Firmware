@@ -567,6 +567,7 @@ float search_code(char key, char instruction[], int string_size)
 float interpolate_pos(float target){
   // Convert the target position in millimeters to the target degree rotation
   float result;
+  result = (float)target * 360.0;
   if(controller_flag & 1<<UNITS_MM){
     result = (float)target * (360.0/((float)MM_PER_ROT));
   }
@@ -592,12 +593,12 @@ float interpolate_vel(float target){
 float bound_pos(float target){
   // Check if bounds are exceeded
   // These variables are poorly named... 
-  if(target > xmin){
+  /*if(target > xmin){
     target = xmin;
   }
   else if(target < xmax){
     target = xmax;
-  }
+  }*/
 
   return target;
 }
@@ -772,6 +773,15 @@ void process_g(int code, char instruction[], int len){
       // Otherwise, we have something like "G1 Xxxx" or "G1 Xxxx Fxxx"
       // Hop into a function to do this
       linear_move_action(reading_x, reading_misc);
+      break;
+
+    case 9:  // G9: Cancel current movement
+       // Wait until we are no longer busy before starting the new command
+      controller_flag &= ~COMMAND_MASK;
+      controller_flag |= STOP_COMMAND<<COMMAND_SHIFT;
+      controller_flag |= 1<<BUSY;
+      mode = 'x';
+      r = yw;  // Set position target to current position
       break;
 
     case SET_ABS:
@@ -1145,9 +1155,9 @@ void setupTCInterrupts() {  // configure the controller interrupt
   for(int i = 0; i<FILTER_LEN;i++){
     u_past[i] = 0;
   }
-  // Start in mm, abs positioning mode
+  // Start in mm, rel positioning mode
   controller_flag = NO_FLAGS;
-  controller_flag |= (1<<UNITS_MM | 1<<POS_ABSOLUTE);
+  controller_flag |= (1<<UNITS_MM);
   // Enable GCLK for TC4 and TC5 (timer counter input clock)
   GCLK->CLKCTRL.reg = (uint16_t) (GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK0 | GCLK_CLKCTRL_ID(GCM_TC4_TC5));
   while (GCLK->STATUS.bit.SYNCBUSY);
